@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd ../.. && pnpm --filter web build",
+  "buildCommand": "pnpm --filter web build",
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [

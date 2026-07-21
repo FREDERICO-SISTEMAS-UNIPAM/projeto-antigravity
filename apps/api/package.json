@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "build": "npx nest build",
+    "build": "echo API build skipped on Vercel",
+    "build:nest": "nest build",
     "dev": "nest start --watch",
     "start": "nest start",
     "lint": "eslint .",

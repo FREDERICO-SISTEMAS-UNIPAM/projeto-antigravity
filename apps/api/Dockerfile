@@ -16,7 +16,7 @@ COPY apps/api ./apps/api
 # Instalação de dependências e compilação do NestJS + Prisma
 RUN pnpm install
 RUN pnpm --filter api run db:generate
-RUN pnpm --filter api run build
+RUN pnpm --filter api run build:nest
 
 # =========================================================
 # Stage 2: Runner (Imagem Leve de Produção)
