@@ -1,0 +1,80 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum RawSource {
+  WHATSAPP_GRUPO_DL
+  WHATSAPP_DISPONIVEIS
+  IFOOD_HISTORIC
+  RYD
+  MANUAL
+}
+
+enum DeliveryStatus {
+  PENDING
+  IN_PROGRESS
+  DELIVERED
+  CANCELED
+}
+
+enum DevicePlatform {
+  ANDROID
+  IOS
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Neighborhood {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  latitude  Float?
+  longitude Float?
+  bounds    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DeviceToken {
+  id            String         @id @default(uuid())
+  motoboyId     String
+  fcmToken      String         @unique
+  bleMacAddress String?
+  platform      DevicePlatform @default(ANDROID)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model DeliveryRequest {
+  id                  String         @id @default(uuid())
+  messageHash         String?        @unique
+  rawSource           RawSource
+  requesterName       String?
+  requesterPhone      String?
+  pickupLocation      String
+  pickupNeighborhood  String
+  deliveryAddress     String?
+  deliveryNeighborhood String
+  deliveryFee         Decimal?       @db.Decimal(10, 2)
+  requestedAt         DateTime
+  dayOfWeek           Int
+  hourOfDay           Int
+  status              DeliveryStatus @default(PENDING)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([deliveryNeighborhood])
+  @@index([pickupNeighborhood])
+  @@index([requestedAt])
+  @@index([dayOfWeek, hourOfDay])
+}

@@ -1,0 +1,37 @@
+# Node / Turborepo
+node_modules
+.turbo
+dist
+build
+.next
+.expo
+.expo-shared
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Environment variables
+.env
+.env*.local
+!.env.example
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea
+
+# Coverage & Tests
+coverage
+.vitest
+
+# Docker volumes / temp
+.docker

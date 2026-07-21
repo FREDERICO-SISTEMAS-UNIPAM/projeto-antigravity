@@ -1,0 +1,36 @@
+# Diretrizes do Projeto & Stack Tecnológica Mandatória - DeliveryBoy AI
+
+Sempre que gerar código, criar estruturas de arquivos, sugerir dependências ou propor refatorações, você DEVE seguir rigorosamente as definições abaixo. Nenhuma tecnologia fora desta lista deve ser introduzida sem permissão explícita.
+
+## 1. Stack e Arquitetura Global
+- **Linguagem Padrão:** TypeScript (Strict mode) em 100% do software (Backend, Web, Mobile).
+- **Arquitetura:** Monorepo gerenciado por Turborepo (compartilhamento de tipos e lógica).
+- **Validação de Dados:** Zod (usado em schemas de entrada/saída, formulários e variáveis .env).
+- **Gerenciamento de Estado & API Fetching:** TanStack Query (React Query) no Web e Mobile.
+- **Padrão de API:** REST (OpenAPI/Swagger) + WebSockets / Socket.IO para eventos em tempo real.
+
+## 2. Estrutura da Aplicação
+- **Frontend Web:** React + Vite + TypeScript.
+- **Mobile:** React Native + Expo + TypeScript.
+- **Backend:** Node.js + NestJS + Prisma ORM + PostgreSQL.
+
+## 3. Comunicação IoT, Hardware & Tempo Real (Chaveiro/Smartwatch)
+- **Protocolo Bluetooth Mobile:** `react-native-ble-plx` ou `expo-ble` (Bluetooth Low Energy - BLE) para pareamento e envio de comandos de alerta/piscar/som para o chaveiro físico.
+- **Servidor em Tempo Real:** NestJS WebSockets / Gateway (Socket.IO) para emitir sinal de evento "Empresário Digitando" de ultra-baixa latência para o app.
+- **Linguagem para Firmware/Hardware (Futuro):** C++ / Embedded C (Arduino Framework / ESP32) para simulação de firmware do chaveiro físico, se solicitado.
+
+## 4. Serviços & Infraestrutura (Google Cloud & Firebase)
+- **Geolocalização & Geofencing:** Google Maps Platform oficial (Maps, Routes, Places, Geocoding) + GPS Nativo + Polígonos de Bairros de Patos de Minas (MG).
+- **Inteligência Artificial:** SDK Oficial do Google Gemini AI (versão mais recente) para análise preditiva espaço-temporal e interpretação de texto livre.
+- **Notificações & Métricas:** Firebase (Cloud Messaging FCM, Crashlytics, Performance Monitoring).
+- **Infraestrutura Cloud GCP:** Cloud Run (Backend), Cloud SQL PostgreSQL, Cloud Storage, Secret Manager, Cloud Build, Artifact Registry, Cloud Logging e Cloud Monitoring.
+
+## 5. Testes e Qualidade
+- **Testes Unitários/Integração:** Vitest (Web e Backend) e Jest (Mobile).
+- **Qualidade de Código:** ESLint + Prettier.
+- **Ambiente Local:** Docker + Docker Compose.
+
+## 6. Regras Globais para o Assistente
+1. Responda sempre utilizando os padrões e convenções oficiais das tecnologias listadas.
+2. Não adicione dependências fora deste escopo a menos que solicitado explicitamente.
+3. Toda comunicação entre Frontend, Mobile e Backend deve prezar pela reutilização de interfaces/tipos TypeScript centralizados no Monorepo.

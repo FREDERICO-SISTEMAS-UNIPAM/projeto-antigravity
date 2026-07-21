@@ -1,0 +1,8 @@
+{
+  "extends": "@repo/tsconfig/react.json",
+  "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true
+  },
+  "include": ["src/**/*"]
+}
