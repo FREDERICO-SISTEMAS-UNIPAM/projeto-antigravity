@@ -166,26 +166,21 @@ export const DashboardHeatmap: React.FC = () => {
 
             <div className="space-y-3">
               <div className="p-3.5 bg-slate-900/80 rounded-xl border border-slate-700/80">
-                <span className="text-[10px] text-slate-400 block font-semibold mb-0.5">PREVISÃO DE DEMANDA IMINENTE</span>
-                <p className="text-sm font-black text-[#00ff66] status-glow-green inline-block px-2 py-0.5 bg-emerald-500/10 rounded">ALTA (85% CHANCE)</p>
+                <span className="text-[10px] text-slate-400 block font-bold mb-0.5 uppercase tracking-wide">Previsão da IA</span>
+                <p className="text-sm font-black text-[#00ff66]">98% de confiança</p>
               </div>
 
               <div className="p-3.5 bg-slate-900/80 rounded-xl border border-slate-700/80">
-                <span className="text-[10px] text-slate-400 block font-semibold mb-0.5">ESTIMATIVA DE FATURAMENTO</span>
+                <span className="text-[10px] text-slate-400 block font-bold mb-0.5 uppercase tracking-wide">Tempo Estimado de Espera</span>
+                <p className="text-sm font-black text-slate-200">2 min</p>
+              </div>
+
+              <div className="p-3.5 bg-slate-900/80 rounded-xl border border-slate-700/80">
+                <span className="text-[10px] text-slate-400 block font-bold mb-0.5 uppercase tracking-wide">Ganhos Estimados</span>
                 <p className="text-sm font-black text-[#ffcc00] flex items-center">
                   <DollarSign className="w-4 h-4 mr-1 text-[#ffcc00]" />
-                  R$ 13,50 / corrida
+                  R$ 40,03/hora
                 </p>
-              </div>
-
-              <div className="p-3.5 bg-slate-900/80 rounded-xl border border-slate-700/80">
-                <span className="text-[10px] text-slate-400 block font-semibold mb-0.5">SINALIZAÇÃO DO CHAVEIRO BLE</span>
-                <p className="text-xs font-mono font-bold text-amber-400">PULSE_YELLOW (HEX: 0xA1011388)</p>
-              </div>
-
-              <div className="p-3.5 bg-slate-900/80 rounded-xl border border-slate-700/80">
-                <span className="text-[10px] text-slate-400 block font-semibold mb-0.5">ETA MÉDIO DE DESLOCAMENTO</span>
-                <p className="text-xs font-bold text-slate-200">6.2 Minutos (Fórmula Haversine)</p>
               </div>
             </div>
           </div>
