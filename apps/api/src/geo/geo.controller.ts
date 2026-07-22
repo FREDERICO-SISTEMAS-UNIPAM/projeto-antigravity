@@ -12,36 +12,36 @@ export class GeoController {
   @Post('locate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Identifica o bairro de Patos de Minas a partir de coordenadas GPS (Latitude / Longitude)',
+    summary: 'Identifica o bairro a partir de coordenadas GPS (Latitude / Longitude)',
     description: 'Calcula o bairro mais próximo da posição GPS informada pelo motoboy utilizando Geofencing/Haversine.',
   })
-  @ApiResponse({ status: 200, description: 'Bairro de Patos de Minas identificado com sucesso.' })
+  @ApiResponse({ status: 200, description: 'Bairro identificado com sucesso.' })
   locateNeighborhood(@Body() dto: LocateCoordinatesDto) {
-    return this.geoService.getNeighborhoodFromCoordinates(dto.latitude, dto.longitude);
+    return this.geoService.getNeighborhoodFromCoordinates(dto.latitude, dto.longitude, dto.city);
   }
 
   @Get('eta')
   @ApiOperation({
-    summary: 'Calcula a distância em km e o tempo estimado de chegada (ETA) entre dois bairros de Patos de Minas',
+    summary: 'Calcula a distância em km e o tempo estimado de chegada (ETA) entre dois bairros',
   })
   @ApiResponse({ status: 200, description: 'Estimativa de distância e tempo calculada.' })
   @ApiResponse({ status: 404, description: 'Um dos bairros informados não foi encontrado no cadastro.' })
   calculateEta(@Query() query: CalculateEtaQueryDto) {
-    return this.geoService.calculateDistanceAndEta(query.originNeighborhood, query.destinationNeighborhood);
+    return this.geoService.calculateDistanceAndEta(query.originNeighborhood, query.destinationNeighborhood, query.city);
   }
 
   @Get('neighborhoods')
-  @ApiOperation({ summary: 'Lista todos os bairros cadastrados de Patos de Minas (MG)' })
+  @ApiOperation({ summary: 'Lista todos os bairros cadastrados de uma cidade' })
   @ApiResponse({ status: 200, description: 'Lista de bairros com coordenadas retornada.' })
-  listNeighborhoods() {
-    return this.geoService.findAllNeighborhoods();
+  listNeighborhoods(@Query('city') citySlug?: string) {
+    return this.geoService.findAllNeighborhoods(citySlug);
   }
 
   @Post('seed')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Executa a carga inicial (Seed) dos bairros de Patos de Minas com coordenadas centrais' })
+  @ApiOperation({ summary: 'Executa a carga inicial (Seed) dos bairros com coordenadas centrais' })
   @ApiResponse({ status: 201, description: 'Seed executado com sucesso.' })
-  seedNeighborhoods() {
-    return this.geoService.seedNeighborhoods();
+  seedNeighborhoods(@Query('city') citySlug?: string) {
+    return this.geoService.seedNeighborhoods(citySlug);
   }
 }

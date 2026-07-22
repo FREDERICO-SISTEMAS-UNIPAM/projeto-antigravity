@@ -86,7 +86,7 @@ function removeAccents(str: string): string {
 export class WhatsAppParserService {
   private readonly logger = new Logger(WhatsAppParserService.name);
 
-  parseWhatsAppChat(content: string, defaultSource: RawSourceEnum = RawSourceEnum.WHATSAPP_DISPONIVEIS): ParseResult {
+  parseWhatsAppChat(content: string, defaultSource: RawSourceEnum = RawSourceEnum.WHATSAPP_DISPONIVEIS, neighborhoodsList?: string[]): ParseResult {
     if (!content || typeof content !== 'string') {
       return { totalMessagesProcessed: 0, requestsCreated: 0, errorsCount: 0, extractedRequests: [] };
     }
@@ -97,7 +97,7 @@ export class WhatsAppParserService {
 
     for (const msgText of rawMessages) {
       try {
-        const parsed = this.parseSingleMessage(msgText, defaultSource);
+        const parsed = this.parseSingleMessage(msgText, defaultSource, neighborhoodsList);
         if (parsed) {
           extractedRequests.push(parsed);
         } else {
@@ -142,7 +142,7 @@ export class WhatsAppParserService {
     return messages;
   }
 
-  private parseSingleMessage(fullMessage: string, defaultSource: RawSourceEnum): CreateDeliveryRequestDto | null {
+  private parseSingleMessage(fullMessage: string, defaultSource: RawSourceEnum, neighborhoodsList?: string[]): CreateDeliveryRequestDto | null {
     const dateMatch = fullMessage.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})[,\s]+(\d{1,2}):(\d{2})/);
     let requestedAt = new Date();
 
@@ -196,7 +196,7 @@ export class WhatsAppParserService {
       rawSource = RawSourceEnum.WHATSAPP_GRUPO_DL;
     }
 
-    const foundNeighborhoods = this.findNeighborhoods(textContent);
+    const foundNeighborhoods = this.findNeighborhoods(textContent, neighborhoodsList);
     let pickupNeighborhood = foundNeighborhoods.pickup;
     let deliveryNeighborhood = foundNeighborhoods.delivery;
 
@@ -249,7 +249,7 @@ export class WhatsAppParserService {
     };
   }
 
-  private findNeighborhoods(text: string): { pickup?: string; delivery?: string; matchedList: string[] } {
+  private findNeighborhoods(text: string, neighborhoodsList?: string[]): { pickup?: string; delivery?: string; matchedList: string[] } {
     const textNormalized = removeAccents(text);
     const matchedList: string[] = [];
 
@@ -257,15 +257,19 @@ export class WhatsAppParserService {
       /(?:coleta|de|retirada|retirar|pegar|saida):?\s*([A-Za-zÀ-ÿ0-9\s]+?)\s*(?:->|para|entrega|entregar|levar|no|em|ate)\s*([A-Za-zÀ-ÿ0-9\s]+?)(?:[,\n\.]|$)/i,
     );
 
+    const listToMatch = neighborhoodsList && neighborhoodsList.length > 0
+      ? neighborhoodsList
+      : PATOS_DE_MINAS_NEIGHBORHOODS;
+
     let explicitPickup: string | undefined;
     let explicitDelivery: string | undefined;
 
     if (explicitPatternMatch) {
-      explicitPickup = this.matchNeighborhoodInText(explicitPatternMatch[1]);
-      explicitDelivery = this.matchNeighborhoodInText(explicitPatternMatch[2]);
+      explicitPickup = this.matchNeighborhoodInText(explicitPatternMatch[1], listToMatch);
+      explicitDelivery = this.matchNeighborhoodInText(explicitPatternMatch[2], listToMatch);
     }
 
-    for (const neighborhood of PATOS_DE_MINAS_NEIGHBORHOODS) {
+    for (const neighborhood of listToMatch) {
       const neighNormalized = removeAccents(neighborhood);
       if (textNormalized.includes(neighNormalized)) {
         if (!matchedList.includes(neighborhood)) {
@@ -281,8 +285,8 @@ export class WhatsAppParserService {
     };
   }
 
-  private matchNeighborhoodInText(segment: string): string | undefined {
+  private matchNeighborhoodInText(segment: string, listToMatch: string[]): string | undefined {
     const segmentNormalized = removeAccents(segment);
-    return PATOS_DE_MINAS_NEIGHBORHOODS.find((n) => segmentNormalized.includes(removeAccents(n)));
+    return listToMatch.find((n) => segmentNormalized.includes(removeAccents(n)));
   }
 }

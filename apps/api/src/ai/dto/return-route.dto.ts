@@ -9,4 +9,7 @@ export class ReturnRouteDto {
 
   @ApiPropertyOptional({ description: 'Longitude GPS atual', example: -46.4905 })
   currentLng?: number;
+
+  @ApiPropertyOptional({ description: 'Slug identificador da cidade (opcional)', example: 'patos-de-minas', required: false })
+  city?: string;
 }

@@ -70,35 +70,87 @@ export class GeoService {
   }
 
   /**
-   * Pre-popula o banco de dados com os bairros de Patos de Minas e coordenadas centrais.
+   * Pre-popula o banco de dados com os bairros de uma cidade específica (padrão: Patos de Minas).
    */
-  async seedNeighborhoods() {
-    let createdCount = 0;
-    for (const item of INITIAL_PATOS_NEIGHBORHOODS) {
-      await this.prisma.neighborhood.upsert({
-        where: { name: item.name },
-        update: { latitude: item.latitude, longitude: item.longitude },
-        create: item,
+  async seedNeighborhoods(citySlug = 'patos-de-minas') {
+    let city = await this.prisma.city.findUnique({
+      where: { slug: citySlug },
+    });
+
+    if (!city) {
+      let name = 'Patos de Minas';
+      let state = 'MG';
+
+      if (citySlug === 'belo-horizonte') {
+        name = 'Belo Horizonte';
+        state = 'MG';
+      } else if (citySlug === 'uberlandia') {
+        name = 'Uberlândia';
+        state = 'MG';
+      }
+
+      city = await this.prisma.city.create({
+        data: {
+          name,
+          state,
+          slug: citySlug,
+        },
       });
-      createdCount++;
+    }
+
+    let createdCount = 0;
+    
+    // Seed apenas se for Patos de Minas para manter a lógica original,
+    // mas a estrutura suporta qualquer cidade.
+    if (citySlug === 'patos-de-minas') {
+      for (const item of INITIAL_PATOS_NEIGHBORHOODS) {
+        await this.prisma.neighborhood.upsert({
+          where: {
+            cityId_name: {
+              cityId: city.id,
+              name: item.name,
+            },
+          },
+          update: { latitude: item.latitude, longitude: item.longitude },
+          create: {
+            name: item.name,
+            latitude: item.latitude,
+            longitude: item.longitude,
+            cityId: city.id,
+          },
+        });
+        createdCount++;
+      }
     }
 
     return {
-      message: `${createdCount} bairros de Patos de Minas (MG) populados/atualizados com sucesso.`,
+      message: `${createdCount} bairros para a cidade ${city.name} (${city.state}) populados/atualizados com sucesso.`,
       count: createdCount,
     };
   }
 
   /**
-   * Encontra o bairro cadastrado de Patos de Minas mais próximo da coordenada GPS do motoboy.
+   * Encontra o bairro cadastrado mais próximo da coordenada GPS do motoboy para uma cidade específica.
    */
-  async getNeighborhoodFromCoordinates(latitude: number, longitude: number): Promise<LocatedNeighborhoodResult> {
-    const neighborhoods = await this.prisma.neighborhood.findMany();
+  async getNeighborhoodFromCoordinates(latitude: number, longitude: number, citySlug = 'patos-de-minas'): Promise<LocatedNeighborhoodResult> {
+    const city = await this.prisma.city.findUnique({ where: { slug: citySlug } });
+    
+    if (!city) {
+      await this.seedNeighborhoods(citySlug);
+      return this.getNeighborhoodFromCoordinates(latitude, longitude, citySlug);
+    }
+
+    const neighborhoods = await this.prisma.neighborhood.findMany({
+      where: { cityId: city.id },
+    });
+
+    if (neighborhoods.length === 0 && citySlug === 'patos-de-minas') {
+      await this.seedNeighborhoods(citySlug);
+      return this.getNeighborhoodFromCoordinates(latitude, longitude, citySlug);
+    }
 
     if (neighborhoods.length === 0) {
-      // Se a tabela estiver vazia, executa o seed automático
-      await this.seedNeighborhoods();
-      return this.getNeighborhoodFromCoordinates(latitude, longitude);
+      throw new NotFoundException(`Nenhum bairro cadastrado para a cidade ${city.name}.`);
     }
 
     let closestNeighborhood = neighborhoods[0];
@@ -121,21 +173,32 @@ export class GeoService {
   }
 
   /**
-   * Calcula distância e ETA estimado em minutos entre dois bairros de Patos de Minas.
+   * Calcula distância e ETA estimado em minutos entre dois bairros de uma cidade específica.
    */
-  async calculateDistanceAndEta(originName: string, destinationName: string): Promise<DistanceAndEtaResult> {
+  async calculateDistanceAndEta(originName: string, destinationName: string, citySlug = 'patos-de-minas'): Promise<DistanceAndEtaResult> {
+    const city = await this.prisma.city.findUnique({ where: { slug: citySlug } });
+    if (!city) {
+      throw new NotFoundException(`Cidade com o identificador "${citySlug}" não foi localizada.`);
+    }
+
     const [origin, destination] = await Promise.all([
       this.prisma.neighborhood.findFirst({
-        where: { name: { contains: originName, mode: 'insensitive' } },
+        where: {
+          cityId: city.id,
+          name: { contains: originName, mode: 'insensitive' },
+        },
       }),
       this.prisma.neighborhood.findFirst({
-        where: { name: { contains: destinationName, mode: 'insensitive' } },
+        where: {
+          cityId: city.id,
+          name: { contains: destinationName, mode: 'insensitive' },
+        },
       }),
     ]);
 
     if (!origin || !destination) {
       throw new NotFoundException(
-        `Não foi possível localizar as coordenadas para o par de bairros: "${originName}" -> "${destinationName}"`,
+        `Não foi possível localizar as coordenadas para o par de bairros em ${city.name}: "${originName}" -> "${destinationName}"`,
       );
     }
 
@@ -144,11 +207,11 @@ export class GeoService {
     const dLat = destination.latitude || -18.5789;
     const dLng = destination.longitude || -46.5153;
 
-    // Distância direta com fator de tortuosidade urbana (1.35x para ruas de Patos de Minas)
+    // Distância direta com fator de tortuosidade urbana (1.35x)
     const directDist = this.calculateHaversineDistance(oLat, oLng, dLat, dLng);
     const urbanDistanceKm = parseFloat((directDist * 1.35).toFixed(2));
 
-    // Velocidade média urbana da moto em Patos de Minas: ~30 km/h (0.5 km/min) + 3 min tempo de embarque
+    // Velocidade média urbana da moto: ~30 km/h (0.5 km/min) + 3 min tempo de embarque
     const durationMinutes = Math.max(3, Math.round((urbanDistanceKm / 30) * 60 + 3));
 
     return {
@@ -161,16 +224,26 @@ export class GeoService {
   }
 
   /**
-   * Retorna a lista de todos os bairros cadastrados de Patos de Minas.
+   * Retorna a lista de todos os bairros cadastrados de uma cidade específica.
    */
-  async findAllNeighborhoods() {
+  async findAllNeighborhoods(citySlug = 'patos-de-minas') {
+    let city = await this.prisma.city.findUnique({ where: { slug: citySlug } });
+    if (!city) {
+      await this.seedNeighborhoods(citySlug);
+      city = await this.prisma.city.findUnique({ where: { slug: citySlug } }) as any;
+    }
+
     const items = await this.prisma.neighborhood.findMany({
+      where: { cityId: city!.id },
       orderBy: { name: 'asc' },
     });
 
-    if (items.length === 0) {
-      await this.seedNeighborhoods();
-      return this.prisma.neighborhood.findMany({ orderBy: { name: 'asc' } });
+    if (items.length === 0 && citySlug === 'patos-de-minas') {
+      await this.seedNeighborhoods(citySlug);
+      return this.prisma.neighborhood.findMany({
+        where: { cityId: city!.id },
+        orderBy: { name: 'asc' },
+      });
     }
 
     return items;

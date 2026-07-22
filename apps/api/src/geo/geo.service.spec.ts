@@ -7,6 +7,14 @@ describe('GeoService (Módulo 3 - Geolocalização)', () => {
 
   beforeEach(() => {
     mockPrisma = {
+      city: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'mock-city-id',
+          name: 'Patos de Minas',
+          state: 'MG',
+          slug: 'patos-de-minas',
+        }),
+      },
       neighborhood: {
         findMany: vi.fn().mockResolvedValue([
           { id: '1', name: 'Centro', latitude: -18.5789, longitude: -46.5153 },

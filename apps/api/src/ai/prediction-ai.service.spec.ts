@@ -8,6 +8,14 @@ describe('PredictionAiService (Módulo 4 - Motor Preditivo)', () => {
 
   beforeEach(() => {
     mockPrisma = {
+      city: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'mock-city-id',
+          name: 'Patos de Minas',
+          state: 'MG',
+          slug: 'patos-de-minas',
+        }),
+      },
       deliveryRequest: {
         findMany: vi.fn().mockResolvedValue([
           { pickupNeighborhood: 'Céu Azul', deliveryFee: 13.5 },

@@ -6,6 +6,7 @@ export const PredictDemandZodSchema = z.object({
   currentLat: z.number().min(-90).max(90),
   currentLng: z.number().min(-180).max(180),
   currentDateTime: z.string().or(z.date()).optional(),
+  city: z.string().optional(),
 });
 
 export class PredictDemandDto {
@@ -20,10 +21,13 @@ export class PredictDemandDto {
 
   @ApiPropertyOptional({ description: 'Data/Hora de referência da consulta', example: '2026-07-21T11:30:00.000Z' })
   currentDateTime?: Date | string;
+
+  @ApiPropertyOptional({ description: 'Slug identificador da cidade (opcional)', example: 'patos-de-minas', required: false })
+  city?: string;
 }
 
 export class AiPredictionResponseDto {
-  @ApiProperty({ description: 'Bairro recomendado de Patos de Minas para deslocamento', example: 'Céu Azul' })
+  @ApiProperty({ description: 'Bairro recomendado para deslocamento', example: 'Céu Azul' })
   recommendedNeighborhood!: string;
 
   @ApiProperty({ description: 'Porcentagem de probabilidade de surgimento de corridas (ex: 85%)', example: 85 })

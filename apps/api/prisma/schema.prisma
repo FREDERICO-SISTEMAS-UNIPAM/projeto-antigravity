@@ -35,14 +35,29 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
+model City {
+  id               String            @id @default(uuid())
+  name             String
+  state            String
+  slug             String            @unique
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  neighborhoods    Neighborhood[]
+  deliveryRequests DeliveryRequest[]
+}
+
 model Neighborhood {
   id        String   @id @default(uuid())
-  name      String   @unique
+  name      String
   latitude  Float?
   longitude Float?
   bounds    Json?
+  cityId    String
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([cityId, name])
 }
 
 model DeviceToken {
@@ -56,25 +71,28 @@ model DeviceToken {
 }
 
 model DeliveryRequest {
-  id                  String         @id @default(uuid())
-  messageHash         String?        @unique
-  rawSource           RawSource
-  requesterName       String?
-  requesterPhone      String?
-  pickupLocation      String
-  pickupNeighborhood  String
-  deliveryAddress     String?
+  id                   String         @id @default(uuid())
+  messageHash          String?        @unique
+  rawSource            RawSource
+  requesterName        String?
+  requesterPhone       String?
+  pickupLocation       String
+  pickupNeighborhood   String
+  deliveryAddress      String?
   deliveryNeighborhood String
-  deliveryFee         Decimal?       @db.Decimal(10, 2)
-  requestedAt         DateTime
-  dayOfWeek           Int
-  hourOfDay           Int
-  status              DeliveryStatus @default(PENDING)
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  deliveryFee          Decimal?       @db.Decimal(10, 2)
+  requestedAt          DateTime
+  dayOfWeek            Int
+  hourOfDay            Int
+  status               DeliveryStatus @default(PENDING)
+  cityId               String?
+  city                 City?          @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   @@index([deliveryNeighborhood])
   @@index([pickupNeighborhood])
   @@index([requestedAt])
   @@index([dayOfWeek, hourOfDay])
+  @@index([cityId])
 }

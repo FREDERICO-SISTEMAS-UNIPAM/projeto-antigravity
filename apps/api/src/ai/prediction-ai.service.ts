@@ -21,15 +21,22 @@ export class PredictionAiService {
     const dayOfWeek = requestedAt.getDay();
     const hourOfDay = requestedAt.getHours();
 
-    // 1. Consultar densidade histórica no PostgreSQL via Prisma para a janela de horário (+/- 1h)
-    const historicalStats = await this.getNeighborhoodDemandStats(dayOfWeek, hourOfDay);
+    const citySlug = dto.city || 'patos-de-minas';
+    let city = await this.prisma.city.findUnique({ where: { slug: citySlug } });
+    if (!city) {
+      await this.geoService.seedNeighborhoods(citySlug);
+      city = await this.prisma.city.findUnique({ where: { slug: citySlug } }) as any;
+    }
+
+    // 1. Consultar densidade histórica no PostgreSQL via Prisma para a janela de horário (+/- 1h) filtrando pela cidade
+    const historicalStats = await this.getNeighborhoodDemandStats(dayOfWeek, hourOfDay, city?.id);
 
     const apiKey = process.env.GEMINI_API_KEY;
 
     // 2. Se a chave da Gemini API estiver configurada, chama o modelo Gemini AI
     if (apiKey && apiKey.trim().length > 0) {
       try {
-        const geminiResult = await this.callGeminiApi(dto, historicalStats, requestedAt);
+        const geminiResult = await this.callGeminiApi(dto, historicalStats, requestedAt, city);
         if (geminiResult) {
           return {
             ...geminiResult,
@@ -42,7 +49,7 @@ export class PredictionAiService {
     }
 
     // 3. Fallback Determinístico Estatístico caso a chave Gemini não esteja presente ou ocorra erro
-    return this.generateDeterministicFallback(dto, historicalStats, dayOfWeek, hourOfDay);
+    return this.generateDeterministicFallback(dto, historicalStats, dayOfWeek, hourOfDay, city);
   }
 
   /**
@@ -53,7 +60,14 @@ export class PredictionAiService {
     const dayOfWeek = now.getDay();
     const hourOfDay = now.getHours();
 
-    const historicalStats = await this.getNeighborhoodDemandStats(dayOfWeek, hourOfDay);
+    const citySlug = dto.city || 'patos-de-minas';
+    let city = await this.prisma.city.findUnique({ where: { slug: citySlug } });
+    if (!city) {
+      await this.geoService.seedNeighborhoods(citySlug);
+      city = await this.prisma.city.findUnique({ where: { slug: citySlug } }) as any;
+    }
+
+    const historicalStats = await this.getNeighborhoodDemandStats(dayOfWeek, hourOfDay, city?.id);
     const destNeighborhood = dto.deliveryDestinationNeighborhood;
 
     // Filtra bairros que não são o próprio bairro periférico de destino
@@ -68,22 +82,23 @@ export class PredictionAiService {
     return {
       recommendedNeighborhood: topCandidate.neighborhood,
       confidencePercentage: 88,
-      reasoning: `Ao sair do bairro ${destNeighborhood}, posicione-se em ${topCandidate.neighborhood}. O corredor de retorno apresenta histórico elevado de chamadas nos próximos 15 minutos, otimizando seu tempo e evitando rodar com a bag vazia.`,
-      hotspotAddress: `Av. Principal de ${topCandidate.neighborhood}, Patos de Minas (MG)`,
+      reasoning: `Ao sair do bairro ${destNeighborhood}, posicione-se em ${topCandidate.neighborhood}. O corredor de retorno apresenta histórico elevado de chamadas nos próximos 15 minutos, otimizando seu tempo e evitando rodar com a bag vazia em ${city?.name || 'Patos de Minas'}.`,
+      hotspotAddress: `Av. Principal de ${topCandidate.neighborhood}, ${city?.name || 'Patos de Minas'} (${city?.state || 'MG'})`,
       expectedAverageFee: topCandidate.avgFee,
       engineSource: 'DETERMINISTIC_FALLBACK',
     };
   }
 
   /**
-   * Consulta agregada de pedidos no Prisma por bairro para o dia da semana e janela de horário.
+   * Consulta agregada de pedidos no Prisma por bairro para o dia da semana e janela de horário e cidade específicos.
    */
-  private async getNeighborhoodDemandStats(dayOfWeek: number, hourOfDay: number) {
+  private async getNeighborhoodDemandStats(dayOfWeek: number, hourOfDay: number, cityId?: string) {
     const hourMin = (hourOfDay - 1 + 24) % 24;
     const hourMax = (hourOfDay + 1) % 24;
 
     const rawRequests = await this.prisma.deliveryRequest.findMany({
       where: {
+        cityId,
         dayOfWeek,
         hourOfDay: { in: [hourMin, hourOfDay, hourMax] },
       },
@@ -130,20 +145,19 @@ export class PredictionAiService {
   /**
    * Chamada ao SDK oficial da Google Gemini AI.
    */
-  private async callGeminiApi(dto: PredictDemandDto, stats: any[], requestedAt: Date) {
+  private async callGeminiApi(dto: PredictDemandDto, stats: any[], requestedAt: Date, city: any) {
     try {
-      // Import dinâmico / seguro do SDK @google/genai ou @google/generative-ai
       const { GoogleGenAI } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
       const prompt = `
-Você é o motor preditivo do software DeliveryBoy AI para entregadores de moto em Patos de Minas (MG).
+Você é o motor preditivo do software DeliveryBoy AI para entregadores de moto em ${city?.name || 'Patos de Minas'} (${city?.state || 'MG'}).
 Contexto do Entregador:
 - Bairro Atual: ${dto.currentNeighborhood}
 - Posição GPS Atual: Lat ${dto.currentLat}, Lng ${dto.currentLng}
 - Horário da Consulta: ${requestedAt.toLocaleString('pt-BR')}
 
-Dados Históricos de Demandas de Entregas nesta janela de horário em Patos de Minas:
+Dados Históricos de Demandas de Entregas nesta janela de horário em ${city?.name || 'Patos de Minas'}:
 ${JSON.stringify(stats, null, 2)}
 
 Responda APENAS com um objeto JSON estrito sem markdown, sem explicações adicionais, no seguinte formato:
@@ -169,7 +183,7 @@ Responda APENAS com um objeto JSON estrito sem markdown, sem explicações adici
         recommendedNeighborhood: parsed.recommendedNeighborhood || 'Céu Azul',
         confidencePercentage: Number(parsed.confidencePercentage) || 85,
         reasoning: parsed.reasoning || `Sua zona atual (${dto.currentNeighborhood}) está fria. Alta demanda identificada na região sugerida.`,
-        hotspotAddress: parsed.hotspotAddress || `Ponto central de ${parsed.recommendedNeighborhood || 'Céu Azul'}, Patos de Minas (MG)`,
+        hotspotAddress: parsed.hotspotAddress || `Ponto central de ${parsed.recommendedNeighborhood || 'Céu Azul'}, ${city?.name || 'Patos de Minas'} (${city?.state || 'MG'})`,
         expectedAverageFee: Number(parsed.expectedAverageFee) || 12.5,
       };
     } catch (err) {
@@ -181,7 +195,7 @@ Responda APENAS com um objeto JSON estrito sem markdown, sem explicações adici
   /**
    * Gera a resposta preditiva usando fallback estatístico quando a Gemini API não estiver disponível.
    */
-  private generateDeterministicFallback(dto: PredictDemandDto, stats: any[], dayOfWeek: number, hourOfDay: number): AiPredictionResponseDto {
+  private generateDeterministicFallback(dto: PredictDemandDto, stats: any[], dayOfWeek: number, hourOfDay: number, city: any): AiPredictionResponseDto {
     const topNeighborhood = stats[0] || { neighborhood: 'Céu Azul', count: 15, avgFee: 13.0 };
     const totalVolume = stats.reduce((acc, s) => acc + s.count, 0) || 1;
     const confidencePercentage = Math.min(95, Math.max(70, Math.round((topNeighborhood.count / totalVolume) * 100 + 40)));
@@ -191,8 +205,8 @@ Responda APENAS com um objeto JSON estrito sem markdown, sem explicações adici
     return {
       recommendedNeighborhood: topNeighborhood.neighborhood,
       confidencePercentage,
-      reasoning: `Sua zona atual (${dto.currentNeighborhood}) apresenta baixa densidade. O bairro ${topNeighborhood.neighborhood} concentra o maior volume histórico de chamadas em ${daysMap[dayOfWeek]}s por volta das ${hourOfDay}h.`,
-      hotspotAddress: `Cruzamento principal no bairro ${topNeighborhood.neighborhood}, Patos de Minas (MG)`,
+      reasoning: `Sua zona atual (${dto.currentNeighborhood}) apresenta baixa densidade. O bairro ${topNeighborhood.neighborhood} concentra o maior volume histórico de chamadas em ${daysMap[dayOfWeek]}s por volta das ${hourOfDay}h em ${city?.name || 'Patos de Minas'}.`,
+      hotspotAddress: `Cruzamento principal no bairro ${topNeighborhood.neighborhood}, ${city?.name || 'Patos de Minas'} (${city?.state || 'MG'})`,
       expectedAverageFee: topNeighborhood.avgFee,
       engineSource: 'DETERMINISTIC_FALLBACK',
     };

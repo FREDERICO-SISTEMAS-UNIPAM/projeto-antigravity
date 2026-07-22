@@ -13,6 +13,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody, ApiQuery } fr
 import { WhatsAppParserService } from './whatsapp-parser.service';
 import { DeliveryRequestsService } from '../delivery-requests/delivery-requests.service';
 import { RawSourceEnum } from '../delivery-requests/dto/create-delivery-request.dto';
+import { PrismaService } from '../prisma/prisma.service';
 
 interface MulterFile {
   fieldname: string;
@@ -29,6 +30,7 @@ export class WhatsAppIngestionController {
   constructor(
     private readonly whatsappParserService: WhatsAppParserService,
     private readonly deliveryRequestsService: DeliveryRequestsService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Post('upload')
@@ -37,13 +39,18 @@ export class WhatsAppIngestionController {
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Upload de arquivo de log .txt do WhatsApp',
-    description: 'Processa mensagens exportadas do WhatsApp de grupos de Patos de Minas e realiza a gravação em lote (Bulk Create) no PostgreSQL.',
+    description: 'Processa mensagens exportadas do WhatsApp de grupos e realiza a gravação em lote (Bulk Create) no PostgreSQL.',
   })
   @ApiQuery({
     name: 'defaultSource',
     enum: RawSourceEnum,
     required: false,
     description: 'Fonte padrão caso não identificada no arquivo (ex: WHATSAPP_GRUPO_DL ou WHATSAPP_DISPONIVEIS)',
+  })
+  @ApiQuery({
+    name: 'city',
+    required: false,
+    description: 'Slug identificador da cidade (opcional, padrão: patos-de-minas)',
   })
   @ApiBody({
     schema: {
@@ -65,6 +72,7 @@ export class WhatsAppIngestionController {
   async uploadWhatsAppChat(
     @UploadedFile() file: MulterFile,
     @Query('defaultSource') defaultSource?: RawSourceEnum,
+    @Query('city') citySlug?: string,
   ) {
     if (!file || !file.buffer) {
       throw new BadRequestException('É necessário enviar um arquivo de log do WhatsApp (.txt).');
@@ -73,15 +81,36 @@ export class WhatsAppIngestionController {
     const fileContent = file.buffer.toString('utf-8');
     const sourceEnum = defaultSource || RawSourceEnum.WHATSAPP_DISPONIVEIS;
 
-    // 1. Parsing do chat via WhatsAppParserService
-    const parseResult = this.whatsappParserService.parseWhatsAppChat(fileContent, sourceEnum);
+    let neighborhoodsList: string[] | undefined = undefined;
+    
+    // Se a cidade for especificada, buscaremos os bairros cadastrados para ela
+    if (citySlug) {
+      const city = await this.prisma.city.findUnique({ where: { slug: citySlug } });
+      if (city) {
+        const neighborhoods = await this.prisma.neighborhood.findMany({
+          where: { cityId: city.id },
+          select: { name: true },
+        });
+        neighborhoodsList = neighborhoods.map(n => n.name);
+      }
+    }
+
+    // 1. Parsing do chat via WhatsAppParserService com a lista de bairros dinâmica
+    const parseResult = this.whatsappParserService.parseWhatsAppChat(fileContent, sourceEnum, neighborhoodsList);
 
     let savedCount = 0;
 
+    // Se uma cidade foi identificada e os requests forem criados, associaremos o cityId a eles
+    const cityRecord = citySlug ? await this.prisma.city.findUnique({ where: { slug: citySlug } }) : null;
+    const itemsWithCity = parseResult.extractedRequests.map(item => ({
+      ...item,
+      cityId: cityRecord?.id || null,
+    }));
+
     // 2. Gravação em lote no banco via DeliveryRequestsService se houver itens válidos
-    if (parseResult.extractedRequests.length > 0) {
+    if (itemsWithCity.length > 0) {
       const bulkResult = await this.deliveryRequestsService.createBulk({
-        items: parseResult.extractedRequests,
+        items: itemsWithCity as any,
       });
       savedCount = bulkResult.count;
     }
