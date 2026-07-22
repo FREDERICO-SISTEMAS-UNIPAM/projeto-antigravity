@@ -158,7 +158,7 @@ export const DashboardHeatmap: React.FC = () => {
               </span>
             </div>
             
-            <h3 className="text-2xl font-black text-white mb-2">{selectedNeighborhood}</h3>
+            <h3 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-2">{selectedNeighborhood}</h3>
             
             <p className="text-xs text-slate-400 leading-relaxed mb-6 font-medium">
               Região integrada ativamente ao scanner espaço-temporal. Histórico com pico de atividade preditiva gerada pelo motor AMD/Gemini.
