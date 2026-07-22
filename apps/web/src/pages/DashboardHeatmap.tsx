@@ -24,8 +24,8 @@ export const DashboardHeatmap: React.FC = () => {
           <div className="flex items-center space-x-2.5">
             <Compass className="w-5 h-5 text-emerald-400 animate-pulse" />
             <div>
-              <h2 className="text-sm sm:text-base font-extrabold text-white tracking-wide">RADAR TÁTICO ESPAÇO-TEMPORAL</h2>
-              <p className="text-[10px] text-slate-400 font-mono">CENTRO DE OPERAÇÕES • PATOS DE MINAS (MG)</p>
+              <h2 className="text-sm sm:text-base font-extrabold text-white tracking-wide uppercase">centro de comando do radar de ponto quente</h2>
+              <p className="text-[10px] text-slate-400 font-mono">Radar AMD Copilot</p>
             </div>
           </div>
           <span className="text-[10px] bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1 rounded-full font-mono font-bold">
