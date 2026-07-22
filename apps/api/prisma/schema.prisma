@@ -27,12 +27,23 @@ enum DevicePlatform {
   IOS
 }
 
+enum UserRole {
+  ADMIN
+  MANAGER
+  DISPATCHER
+  MOTOBOY
+}
+
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+  password     String?
+  role         UserRole      @default(MOTOBOY)
+  tenantId     String?
+  deviceTokens DeviceToken[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model City {
@@ -44,6 +55,7 @@ model City {
   updatedAt        DateTime          @updatedAt
   neighborhoods    Neighborhood[]
   deliveryRequests DeliveryRequest[]
+  contacts         Contact[]
 }
 
 model Neighborhood {
@@ -62,9 +74,11 @@ model Neighborhood {
 
 model DeviceToken {
   id            String         @id @default(uuid())
-  motoboyId     String
+  userId        String?
+  user          User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
   fcmToken      String         @unique
   bleMacAddress String?
+  bleSettings   Json?
   platform      DevicePlatform @default(ANDROID)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -95,4 +109,42 @@ model DeliveryRequest {
   @@index([requestedAt])
   @@index([dayOfWeek, hourOfDay])
   @@index([cityId])
+}
+
+model GeocodingCache {
+  id        String   @id @default(uuid())
+  address   String   @unique
+  latitude  Float
+  longitude Float
+  createdAt DateTime @default(now())
+}
+
+model Contact {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  address   String?
+  cityId    String?
+  city      City?    @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AiPredictionLog {
+  id                     String   @id @default(uuid())
+  currentNeighborhood    String
+  recommendedNeighborhood String
+  confidencePercentage   Int
+  reasoning              String
+  expectedAverageFee     Float
+  engineSource           String
+  feedbackRating         Int?
+  createdAt              DateTime @default(now())
+}
+
+model RealtimeEvent {
+  id        String   @id @default(uuid())
+  eventType String
+  payload   Json
+  createdAt DateTime @default(now())
 }
