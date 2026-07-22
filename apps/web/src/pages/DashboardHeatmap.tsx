@@ -2,26 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { Compass, MapPin, TrendingUp, DollarSign, ShieldAlert, Cpu } from 'lucide-react';
 import { ApiClient, NeighborhoodItem } from '../services/api-client';
 import { socketClient } from '../services/socket-client';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 
-const RADAR_NEIGHBORHOODS = [
-  { name: 'Centro', x: -60, y: -45, color: '#38bdf8', ringColor: '#38bdf8' },
-  { name: 'Céu Azul', x: 80, y: 70, color: '#ff3366', ringColor: '#ff3366' },
-  { name: 'Rosário', x: -50, y: 60, color: '#ffcc00', ringColor: '#ffcc00' },
-  { name: 'Sebastião Amorim', x: 90, y: -30, color: '#00ff66', ringColor: '#00ff66' },
-  { name: 'Brasil', x: -20, y: -90, color: '#00ff66', ringColor: '#00ff66' },
-  { name: 'Panorâmico', x: 40, y: -60, color: '#00ff66', ringColor: '#00ff66' },
+const NEIGHBORHOODS_MAP = [
+  { name: 'Centro', lat: -18.5789, lng: -46.5153, color: '#38bdf8' },
+  { name: 'Céu Azul', lat: -18.6145, lng: -46.5050, color: '#ff3366' },
+  { name: 'Rosário', lat: -18.5850, lng: -46.5120, color: '#ffcc00' },
+  { name: 'Sebastião Amorim', lat: -18.5950, lng: -46.4800, color: '#00ff66' },
+  { name: 'Brasil', lat: -18.5755, lng: -46.5100, color: '#00ff66' },
+  { name: 'Panorâmico', lat: -18.5952, lng: -46.4905, color: '#00ff66' },
 ];
 
 const ESTABLISHMENTS = [
-  { id: 'steak-grill', name: 'Steak Grill Bar', x: -45, y: 35, icon: '/logos/media__1784629913070.png', lat: -18.5850, lng: -46.5120 },
-  { id: 'sangreal-burguer', name: 'Sangreal Burguer!', x: -25, y: -20, icon: '/logos/media__1784630556152.png', lat: -18.5780, lng: -46.5130 },
-  { id: 'ebimaki-sushi', name: 'Ebimaki Sushi', x: -10, y: 15, icon: '/logos/media__1784631637300.png', lat: -18.5750, lng: -46.5190 },
-  { id: 'pizzaria-di-roma', name: 'Pizzaria Di Roma', x: -35, y: -45, icon: '/logos/media__1784631897861.png', lat: -18.5789, lng: -46.5153 },
-  { id: 'point-do-sorvete', name: 'Point Do Sorvete', x: 60, y: -45, icon: '/logos/media__1784632056475.png', lat: -18.6050, lng: -46.4850 },
-  { id: 'bells-burguer', name: 'Bells Burguer', x: 45, y: 15, icon: '/logos/media__1784632229727.png', lat: -18.6010, lng: -46.5050 },
-  { id: 'emporio-copacabana', name: 'Emporio Copacabana', x: 10, y: 40, icon: '/logos/media__1784632467719.png', lat: -18.5900, lng: -46.5080 },
-  { id: 'whatsbeer', name: 'Whatsbeer', x: -15, y: -75, icon: '/logos/media__1784632697714.png', lat: -18.5755, lng: -46.5100 },
-  { id: 'dubai-lanches', name: 'Dubai Lanches', x: 65, y: 50, icon: '/logos/media__1784634521177.png', lat: -18.6145, lng: -46.5050 }
+  { id: 'steak-grill', name: 'Steak Grill Bar', lat: -18.5850, lng: -46.5120, icon: '/logos/media__1784629913070.png' },
+  { id: 'sangreal-burguer', name: 'Sangreal Burguer!', lat: -18.5780, lng: -46.5130, icon: '/logos/media__1784630556152.png' },
+  { id: 'ebimaki-sushi', name: 'Ebimaki Sushi', lat: -18.5750, lng: -46.5190, icon: '/logos/media__1784631637300.png' },
+  { id: 'pizzaria-di-roma', name: 'Pizzaria Di Roma', lat: -18.5789, lng: -46.5153, icon: '/logos/media__1784631897861.png' },
+  { id: 'point-do-sorvete', name: 'Point Do Sorvete', lat: -18.6050, lng: -46.4850, icon: '/logos/media__1784632056475.png' },
+  { id: 'bells-burguer', name: 'Bells Burguer', lat: -18.6010, lng: -46.5050, icon: '/logos/media__1784632229727.png' },
+  { id: 'emporio-copacabana', name: 'Emporio Copacabana', lat: -18.5900, lng: -46.5080, icon: '/logos/media__1784632467719.png' },
+  { id: 'whatsbeer', name: 'Whatsbeer', lat: -18.5755, lng: -46.5100, icon: '/logos/media__1784632697714.png' },
+  { id: 'dubai-lanches', name: 'Dubai Lanches', lat: -18.6145, lng: -46.5050, icon: '/logos/media__1784634521177.png' }
 ];
 
 export const DashboardHeatmap: React.FC = () => {
@@ -63,6 +66,42 @@ export const DashboardHeatmap: React.FC = () => {
     return { label: 'NORMAL', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' };
   };
 
+  const createNeighborhoodIcon = (n: typeof NEIGHBORHOODS_MAP[0], isSelected: boolean) => {
+    return L.divIcon({
+      className: 'custom-neighborhood-marker',
+      html: `
+        <div class="relative w-4 h-4 flex items-center justify-center">
+          <span class="sonar-ripple" style="color: ${n.color};"></span>
+          <span class="w-2 h-2 rounded-full radar-blip-dot ${
+            isSelected ? 'ring-2 ring-[#00ff66] scale-125 bg-white' : ''
+          }" style="background-color: ${isSelected ? '#ffffff' : n.color};"></span>
+        </div>
+      `,
+      iconSize: [16, 16],
+      iconAnchor: [8, 8],
+    });
+  };
+
+  const createCustomIcon = (est: typeof ESTABLISHMENTS[0], isTyping: boolean) => {
+    return L.divIcon({
+      className: 'custom-leaflet-marker',
+      html: `
+        <div class="relative group">
+          <div class="w-8 h-8 rounded-full border-2 bg-slate-900 overflow-hidden flex items-center justify-center transition-all duration-300 relative ${
+            isTyping
+              ? 'border-[#00ff66] neon-typing-pulse scale-110 shadow-lg shadow-[#00ff66]/50'
+              : 'border-slate-600 hover:border-slate-300'
+          }">
+            <img src="${est.icon}" alt="${est.name}" class="w-full h-full object-cover" />
+            ${isTyping ? '<span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#00ff66] rounded-full border border-slate-950 animate-ping"></span>' : ''}
+          </div>
+        </div>
+      `,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Radar Tático Integrado */}
@@ -80,113 +119,69 @@ export const DashboardHeatmap: React.FC = () => {
           </span>
         </div>
 
-        {/* Display do Radar Tático */}
-        <div className="w-full h-80 bg-[#090d16] border border-slate-800 rounded-xl relative overflow-hidden flex items-center justify-center">
-          {/* Malha do Radar SVG: Círculos e Linhas Radiais em Roxo Nevoeiro */}
-          <svg className="absolute w-full h-full inset-0 pointer-events-none text-purple-600/30" viewBox="0 0 200 200" preserveAspectRatio="none">
-            {/* Círculos Concêntricos */}
-            <circle cx="100" cy="100" r="85" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="3 3" />
-            <circle cx="100" cy="100" r="65" fill="none" stroke="currentColor" strokeWidth="0.5" />
-            <circle cx="100" cy="100" r="45" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2 2" />
-            <circle cx="100" cy="100" r="25" fill="none" stroke="currentColor" strokeWidth="0.5" />
-            
-            {/* Eixos Principais */}
-            <line x1="100" y1="10" x2="100" y2="190" stroke="currentColor" strokeWidth="0.5" />
-            <line x1="10" y1="100" x2="190" y2="100" stroke="currentColor" strokeWidth="0.5" />
+        {/* Display do Radar Tático (Mapa Leaflet Interativo) */}
+        <div className="w-full h-96 bg-[#090d16] border border-slate-800 rounded-xl relative overflow-hidden">
+          <MapContainer
+            center={[-18.5789, -46.5181]}
+            zoom={14}
+            zoomControl={true}
+            scrollWheelZoom={true}
+            style={{ width: '100%', height: '100%', zIndex: 10 }}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            />
 
-            {/* Linhas Radiais Suaves */}
-            <line x1="39.8" y1="39.8" x2="160.2" y2="160.2" stroke="currentColor" strokeWidth="0.3" strokeDasharray="2 2" />
-            <line x1="160.2" y1="39.8" x2="39.8" y2="160.2" stroke="currentColor" strokeWidth="0.3" strokeDasharray="2 2" />
-            <line x1="100" y1="100" x2="173.6" y2="142.5" stroke="currentColor" strokeWidth="0.2" />
-            <line x1="100" y1="100" x2="26.4" y2="57.5" stroke="currentColor" strokeWidth="0.2" />
-            <line x1="100" y1="100" x2="173.6" y2="57.5" stroke="currentColor" strokeWidth="0.2" />
-            <line x1="100" y1="100" x2="26.4" y2="142.5" stroke="currentColor" strokeWidth="0.2" />
-          </svg>
-
-          {/* Linha de Varredura de Radar (Sweep Line) */}
-          <div className="absolute w-full h-full inset-0">
-            <div className="radar-sweep-line" />
-          </div>
-
-          {/* Pontos de Bairros Detectados no Radar */}
-          {RADAR_NEIGHBORHOODS.map((n) => {
-            const isSelected = selectedNeighborhood === n.name;
-
-            return (
-              <button
-                key={n.name}
-                onClick={() => setSelectedNeighborhood(n.name)}
-                style={{
-                  transform: `translate(${n.x}px, ${n.y}px)`,
-                }}
-                className="absolute w-3.5 h-3.5 rounded-full transition-all duration-300 z-20 group hover:scale-125 focus:outline-none flex items-center justify-center"
-              >
-                {/* Sonar Ripple Wave */}
-                <span 
-                  style={{ color: n.ringColor }}
-                  className="sonar-ripple" 
-                />
-                <span 
-                  style={{ backgroundColor: isSelected ? '#ffffff' : n.color }}
-                  className={`w-1.5 h-1.5 rounded-full radar-blip-dot ${
-                    isSelected ? 'ring-2 ring-[#00ff66] scale-125' : ''
-                  }`} 
-                />
-
-                {/* Popover Hover */}
-                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2.5 py-1 bg-slate-900 border border-slate-700 text-[10px] text-white rounded font-mono opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl">
-                  {n.name}
-                </span>
-              </button>
-            );
-          })}
-
-          {/* Marcadores dos Estabelecimentos no Radar */}
-          {ESTABLISHMENTS.map((est) => {
-            const isTyping = !!typingRestaurants[est.id];
-
-            return (
-              <div
-                key={est.id}
-                style={{
-                  transform: `translate(${est.x}px, ${est.y}px)`,
-                }}
-                className="absolute z-30 group"
-              >
-                <div
-                  className={`w-7 h-7 rounded-full border-2 bg-slate-900 overflow-hidden flex items-center justify-center transition-all duration-300 relative ${
-                    isTyping
-                      ? 'border-[#00ff66] neon-typing-pulse scale-110 shadow-lg shadow-[#00ff66]/50'
-                      : 'border-slate-600 hover:border-slate-300'
-                  }`}
+            {/* Bairros */}
+            {NEIGHBORHOODS_MAP.map((n) => {
+              const isSelected = selectedNeighborhood === n.name;
+              return (
+                <Marker
+                  key={n.name}
+                  position={[n.lat, n.lng]}
+                  icon={createNeighborhoodIcon(n, isSelected)}
+                  eventHandlers={{
+                    click: () => {
+                      setSelectedNeighborhood(n.name);
+                    },
+                  }}
                 >
-                  <img
-                    src={est.icon}
-                    alt={est.name}
-                    className="w-full h-full object-cover"
-                  />
-                  {isTyping && (
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#00ff66] rounded-full border border-slate-950 animate-ping" />
-                  )}
-                </div>
+                  <Popup>
+                    <div className="text-xs font-mono text-slate-800">
+                      <p className="font-bold">{n.name}</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
 
-                {/* Popover Hover */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-950 border border-slate-700 text-[10px] text-white rounded font-mono opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl flex flex-col items-center">
-                  <span className="font-bold text-[#38bdf8]">{est.name}</span>
-                  <span className="text-[8px] text-slate-400">Lat: {est.lat}, Lng: {est.lng}</span>
-                  {isTyping && (
-                    <span className="text-[8px] text-[#00ff66] font-bold mt-0.5 animate-pulse uppercase">Digitando...</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+            {/* Estabelecimentos */}
+            {ESTABLISHMENTS.map((est) => {
+              const isTyping = !!typingRestaurants[est.id];
+              return (
+                <Marker
+                  key={est.id}
+                  position={[est.lat, est.lng]}
+                  icon={createCustomIcon(est, isTyping)}
+                >
+                  <Popup>
+                    <div className="text-xs font-mono text-slate-800">
+                      <p className="font-bold">{est.name}</p>
+                      <p className="text-[10px]">Lat: {est.lat}, Lng: {est.lng}</p>
+                      {isTyping && <p className="text-[#00ff66] font-bold animate-pulse">DIGITANDO...</p>}
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
+          </MapContainer>
 
           {/* Centro Tático com Texto Pulsante */}
-          <div className="absolute flex flex-col items-center justify-center z-20">
-            <span className="w-4 h-4 rounded-full bg-emerald-500 status-glow-green animate-ping mb-1" />
-            <div className="px-3 py-1.5 bg-[#090d16]/95 border border-emerald-500/60 rounded-lg text-center shadow-lg">
-              <span className="text-[10px] sm:text-xs font-black text-[#00ff66] tracking-widest radar-pulse-text uppercase">
+          <div className="absolute top-4 right-4 z-[1000] flex flex-col items-end justify-center pointer-events-none">
+            <div className="flex items-center space-x-1.5 mb-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 status-glow-green animate-ping" />
+              <span className="text-[9px] font-mono text-slate-300 bg-slate-900/90 border border-slate-700/80 px-2 py-0.5 rounded uppercase">
                 IA DA AMD / Operações
               </span>
             </div>
