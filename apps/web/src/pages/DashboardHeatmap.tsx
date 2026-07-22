@@ -44,15 +44,26 @@ export const DashboardHeatmap: React.FC = () => {
 
         {/* Display do Radar Tático */}
         <div className="w-full h-80 bg-[#090d16] border border-slate-800 rounded-xl relative overflow-hidden flex items-center justify-center">
-          {/* Círculos Concêntricos de Grade */}
-          <div className="absolute w-72 h-72 rounded-full border border-emerald-500/10" />
-          <div className="absolute w-56 h-56 rounded-full border border-emerald-500/20" />
-          <div className="absolute w-40 h-40 rounded-full border border-emerald-500/35" />
-          <div className="absolute w-24 h-24 rounded-full border border-emerald-500/50" />
-          
-          {/* Eixos Grid */}
-          <div className="absolute w-full h-[1px] bg-emerald-500/15" />
-          <div className="absolute w-[1px] h-full bg-emerald-500/15" />
+          {/* Malha do Radar SVG: Círculos e Linhas Radiais em Roxo Nevoeiro */}
+          <svg className="absolute w-full h-full inset-0 pointer-events-none text-purple-600/30" viewBox="0 0 200 200" preserveAspectRatio="none">
+            {/* Círculos Concêntricos */}
+            <circle cx="100" cy="100" r="85" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="3 3" />
+            <circle cx="100" cy="100" r="65" fill="none" stroke="currentColor" strokeWidth="0.5" />
+            <circle cx="100" cy="100" r="45" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2 2" />
+            <circle cx="100" cy="100" r="25" fill="none" stroke="currentColor" strokeWidth="0.5" />
+            
+            {/* Eixos Principais */}
+            <line x1="100" y1="10" x2="100" y2="190" stroke="currentColor" strokeWidth="0.5" />
+            <line x1="10" y1="100" x2="190" y2="100" stroke="currentColor" strokeWidth="0.5" />
+
+            {/* Linhas Radiais Suaves */}
+            <line x1="39.8" y1="39.8" x2="160.2" y2="160.2" stroke="currentColor" strokeWidth="0.3" strokeDasharray="2 2" />
+            <line x1="160.2" y1="39.8" x2="39.8" y2="160.2" stroke="currentColor" strokeWidth="0.3" strokeDasharray="2 2" />
+            <line x1="100" y1="100" x2="173.6" y2="142.5" stroke="currentColor" strokeWidth="0.2" />
+            <line x1="100" y1="100" x2="26.4" y2="57.5" stroke="currentColor" strokeWidth="0.2" />
+            <line x1="100" y1="100" x2="173.6" y2="57.5" stroke="currentColor" strokeWidth="0.2" />
+            <line x1="100" y1="100" x2="26.4" y2="142.5" stroke="currentColor" strokeWidth="0.2" />
+          </svg>
 
           {/* Linha de Varredura de Radar (Sweep Line) */}
           <div className="absolute w-full h-full inset-0">
