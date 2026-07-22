@@ -33,34 +33,77 @@ export const DashboardHeatmap: React.FC = () => {
   const [neighborhoods, setNeighborhoods] = useState<NeighborhoodItem[]>([]);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>('Céu Azul');
   const [typingRestaurants, setTypingRestaurants] = useState<Record<string, boolean>>({});
+  const [vcfContacts, setVcfContacts] = useState<any[]>([]);
+  const [activeVcfMarkers, setActiveVcfMarkers] = useState<Record<string, { name: string; lat: number; lng: number; address: string; timestamp: number }>>({});
 
   useEffect(() => {
     ApiClient.fetchNeighborhoods().then(setNeighborhoods);
   }, []);
 
   useEffect(() => {
+    // Carrega a lista completa de contatos VCF com endereços geolocalizados
+    fetch('/contacts-with-addresses.json')
+      .then((res) => {
+        if (!res.ok) throw new Error('Não foi possível carregar os contatos do VCF.');
+        return res.json();
+      })
+      .then(setVcfContacts)
+      .catch((err) => console.warn(err.message));
+  }, []);
+
+  useEffect(() => {
     socketClient.connect();
     const unsubscribe = socketClient.onRestaurantTyping((payload) => {
       const { restaurantId } = payload;
-      const matched = ESTABLISHMENTS.find(
+      
+      // Procura primeiro nos estabelecimentos padrão
+      const matchedEst = ESTABLISHMENTS.find(
         (e) =>
           e.id === restaurantId ||
           e.name.toLowerCase() === restaurantId.toLowerCase() ||
           restaurantId.toLowerCase().includes(e.id)
       );
 
-      if (matched) {
-        setTypingRestaurants((prev) => ({ ...prev, [matched.id]: true }));
+      if (matchedEst) {
+        setTypingRestaurants((prev) => ({ ...prev, [matchedEst.id]: true }));
         setTimeout(() => {
-          setTypingRestaurants((prev) => ({ ...prev, [matched.id]: false }));
+          setTypingRestaurants((prev) => ({ ...prev, [matchedEst.id]: false }));
         }, 5000);
+      } else {
+        // Se não for estabelecimento padrão, procura nos contatos importados do VCF
+        const cleanId = restaurantId.replace(/\D/g, '');
+        const matchedContact = vcfContacts.find(
+          (c) => c.phone === cleanId || cleanId.includes(c.phone) || c.phone.includes(cleanId)
+        );
+
+        if (matchedContact) {
+          setActiveVcfMarkers((prev) => ({
+            ...prev,
+            [matchedContact.phone]: {
+              name: matchedContact.name,
+              lat: matchedContact.lat,
+              lng: matchedContact.lng,
+              address: matchedContact.address,
+              timestamp: Date.now(),
+            },
+          }));
+
+          // Remove o marcador dinâmico após 5 segundos
+          setTimeout(() => {
+            setActiveVcfMarkers((prev) => {
+              const updated = { ...prev };
+              delete updated[matchedContact.phone];
+              return updated;
+            });
+          }, 5000);
+        }
       }
     });
 
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [vcfContacts]);
 
   const getHeatBadge = (idx: number) => {
     if (idx === 0) return { label: 'CRÍTICO', color: 'bg-red-500/10 text-red-400 border-red-500/30' };
@@ -96,6 +139,25 @@ export const DashboardHeatmap: React.FC = () => {
           }">
             <img src="${est.icon}" alt="${est.name}" class="w-full h-full object-cover" />
             ${isTyping ? '<span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#00ff66] rounded-full border border-slate-950 animate-ping"></span>' : ''}
+          </div>
+        </div>
+      `,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+  };
+
+  const createContactIcon = (name: string, isTyping: boolean) => {
+    const initials = name.substring(0, 2).toUpperCase() || 'CT';
+    return L.divIcon({
+      className: 'custom-contact-marker',
+      html: `
+        <div class="relative group">
+          <div class="w-8 h-8 rounded-full border-2 bg-[#090d16] border-[#00ff66] overflow-hidden flex items-center justify-center transition-all duration-300 relative ${
+            isTyping ? 'neon-typing-pulse scale-110 shadow-lg shadow-[#00ff66]/50' : 'border-slate-500'
+          }">
+            <span class="text-[10px] font-black text-white font-mono">${initials}</span>
+            <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#00ff66] rounded-full border border-slate-950 animate-ping"></span>
           </div>
         </div>
       `,
@@ -158,7 +220,7 @@ export const DashboardHeatmap: React.FC = () => {
               );
             })}
 
-            {/* Estabelecimentos */}
+            {/* Estabelecimentos Padrão */}
             {ESTABLISHMENTS.map((est) => {
               const isTyping = !!typingRestaurants[est.id];
               return (
@@ -172,6 +234,26 @@ export const DashboardHeatmap: React.FC = () => {
                       <p className="font-bold">{est.name}</p>
                       <p className="text-[10px]">Lat: {est.lat}, Lng: {est.lng}</p>
                       {isTyping && <p className="text-[#00ff66] font-bold animate-pulse">DIGITANDO...</p>}
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
+
+            {/* Contatos VCF Ativos (Digitando no WhatsApp) */}
+            {Object.entries(activeVcfMarkers).map(([phone, contact]) => {
+              return (
+                <Marker
+                  key={phone}
+                  position={[contact.lat, contact.lng]}
+                  icon={createContactIcon(contact.name, true)}
+                >
+                  <Popup>
+                    <div className="text-xs font-mono text-slate-800">
+                      <p className="font-bold text-[#00ff66]">📱 CONTATO VCF DIGITANDO</p>
+                      <p className="font-bold">{contact.name}</p>
+                      <p className="text-[10px] text-slate-600">{contact.address}</p>
+                      <p className="text-[9px] text-slate-400">Tel: {phone}</p>
                     </div>
                   </Popup>
                 </Marker>
@@ -206,6 +288,19 @@ export const DashboardHeatmap: React.FC = () => {
                 Simular {est.name.replace('!', '').split(' ')[0]}
               </button>
             ))}
+            
+            <button
+              onClick={() => {
+                if (vcfContacts.length > 0) {
+                  const randomContact = vcfContacts[Math.floor(Math.random() * vcfContacts.length)];
+                  console.log('🤖 Simulação VCF:', randomContact.name, randomContact.phone);
+                  socketClient.emitRestaurantTyping(randomContact.phone);
+                }
+              }}
+              className="text-[10px] bg-purple-900/60 hover:bg-purple-800/80 text-purple-200 border border-purple-700 px-3 py-1.5 rounded-lg transition-all font-mono font-bold"
+            >
+              Simular Contato VCF
+            </button>
           </div>
         </div>
       </div>
