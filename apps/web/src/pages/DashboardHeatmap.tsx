@@ -66,12 +66,16 @@ export const DashboardHeatmap: React.FC = () => {
                 style={{
                   transform: `translate(${x}px, ${y}px)`,
                 }}
-                className={`absolute p-1.5 rounded-full transition-all duration-300 z-20 group hover:scale-125 focus:outline-none ${
+                className={`absolute w-3.5 h-3.5 rounded-full transition-all duration-300 z-20 group hover:scale-125 focus:outline-none flex items-center justify-center ${
                   isSelected
-                    ? 'bg-emerald-400 border border-white status-glow-green animate-pulse'
-                    : 'bg-emerald-500/50 border border-emerald-500/30'
+                    ? 'bg-[#00ff66] border border-white status-glow-green'
+                    : 'bg-emerald-500/70 border border-emerald-500/30'
                 }`}
               >
+                {/* Anel expansivo tático de radar */}
+                <span className="radar-blip-expanding-ring" />
+                <span className="w-1.5 h-1.5 bg-white rounded-full radar-blip-dot" />
+
                 {/* Popover Hover */}
                 <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2.5 py-1 bg-slate-900 border border-slate-700 text-[10px] text-white rounded font-mono opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl">
                   {n.name}
