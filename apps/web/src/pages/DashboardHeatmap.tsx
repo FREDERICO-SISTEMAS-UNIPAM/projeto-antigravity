@@ -148,9 +148,14 @@ export const DashboardHeatmap: React.FC = () => {
         {/* Card Lateral de Detalhes da Região Selecionada */}
         <div className="saas-card p-6 border border-[#334155] flex flex-col justify-between space-y-4">
           <div>
-            <div className="flex items-center space-x-2 text-[#00ff66] text-xs font-bold mb-3">
-              <TrendingUp className="w-4 h-4 animate-pulse" />
-              <span>DETALHES DA REGIÃO MONITORADA</span>
+            <div className="flex justify-between items-center mb-3 gap-2">
+              <div className="flex items-center space-x-2 text-[#00ff66] text-xs font-bold">
+                <TrendingUp className="w-4 h-4 animate-pulse" />
+                <span>INFO REGIÃO</span>
+              </div>
+              <span className="text-[9px] bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2 py-0.5 rounded-full font-black tracking-wider uppercase">
+                MELHOR ÁREA
+              </span>
             </div>
             
             <h3 className="text-2xl font-black text-white mb-2">{selectedNeighborhood}</h3>
