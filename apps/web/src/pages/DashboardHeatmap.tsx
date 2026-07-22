@@ -16,15 +16,17 @@ const NEIGHBORHOODS_MAP = [
 ];
 
 const ESTABLISHMENTS = [
-  { id: 'steak-grill', name: 'Steak Grill Bar', lat: -18.5850, lng: -46.5120, icon: '/logos/media__1784629913070.png' },
-  { id: 'sangreal-burguer', name: 'Sangreal Burguer!', lat: -18.5780, lng: -46.5130, icon: '/logos/media__1784630556152.png' },
+  { id: '5534996972929', name: 'Steak Grill Bar', lat: -18.5850, lng: -46.5120, icon: '/logos/media__1784629913070.png' },
+  { id: '556593259654', name: 'Sangreal Burguer!', lat: -18.5780, lng: -46.5130, icon: '/logos/media__1784630556152.png' },
   { id: 'ebimaki-sushi', name: 'Ebimaki Sushi', lat: -18.5750, lng: -46.5190, icon: '/logos/media__1784631637300.png' },
   { id: 'pizzaria-di-roma', name: 'Pizzaria Di Roma', lat: -18.5789, lng: -46.5153, icon: '/logos/media__1784631897861.png' },
-  { id: 'point-do-sorvete', name: 'Point Do Sorvete', lat: -18.6050, lng: -46.4850, icon: '/logos/media__1784632056475.png' },
+  { id: '553496716021', name: 'Point Do Sorvete', lat: -18.6050, lng: -46.4850, icon: '/logos/media__1784632056475.png' },
   { id: 'bells-burguer', name: 'Bells Burguer', lat: -18.6010, lng: -46.5050, icon: '/logos/media__1784632229727.png' },
   { id: 'emporio-copacabana', name: 'Emporio Copacabana', lat: -18.5900, lng: -46.5080, icon: '/logos/media__1784632467719.png' },
   { id: 'whatsbeer', name: 'Whatsbeer', lat: -18.5755, lng: -46.5100, icon: '/logos/media__1784632697714.png' },
-  { id: 'dubai-lanches', name: 'Dubai Lanches', lat: -18.6145, lng: -46.5050, icon: '/logos/media__1784634521177.png' }
+  { id: '553498266106', name: 'Dubai Lanches', lat: -18.6145, lng: -46.5050, icon: '/logos/media__1784634521177.png' },
+  { id: '553496798638', name: 'Borracharia 034 / Carlos', lat: -18.5820, lng: -46.5080, icon: '/logos/media__1784632697714.png' },
+  { id: '553498812152', name: 'IGOOD😎', lat: -18.5755, lng: -46.5100, icon: '/logos/media__1784632697714.png' }
 ];
 
 export const DashboardHeatmap: React.FC = () => {
