@@ -107,6 +107,15 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return payload;
   }
 
+  @SubscribeMessage('restaurant_typing')
+  handleRestaurantTyping(@ConnectedSocket() client: Socket, @MessageBody() data: { restaurantId: string }) {
+    this.logger.log(`⚡ Evento restaurant_typing recebido para ID/Telefone: ${data?.restaurantId}`);
+    if (this.server) {
+      this.server.emit('restaurant_typing', data);
+    }
+    return { status: 'ok' };
+  }
+
   private formatRoomName(neighborhood: string): string {
     const cleanName = neighborhood
       .normalize('NFD')

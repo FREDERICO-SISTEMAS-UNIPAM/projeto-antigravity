@@ -15,6 +15,7 @@ export interface TypingAlertPayload {
 export class SocketClient {
   private socket: Socket | null = null;
   private listeners: Array<(payload: TypingAlertPayload) => void> = [];
+  private typingListeners: Array<(payload: { restaurantId: string }) => void> = [];
 
   connect(serverUrl: string = 'http://localhost:3001') {
     if (this.socket && this.socket.connected) return;
@@ -32,6 +33,11 @@ export class SocketClient {
       console.log('🔔 Alerta de digitação recebido no Dashboard Web:', payload);
       this.listeners.forEach((fn) => fn(payload));
     });
+
+    this.socket.on('restaurant_typing', (payload: { restaurantId: string }) => {
+      console.log('🔔 Evento restaurant_typing recebido no Dashboard Web:', payload);
+      this.typingListeners.forEach((fn) => fn(payload));
+    });
   }
 
   onMerchantTyping(callback: (payload: TypingAlertPayload) => void) {
@@ -39,6 +45,19 @@ export class SocketClient {
     return () => {
       this.listeners = this.listeners.filter((fn) => fn !== callback);
     };
+  }
+
+  onRestaurantTyping(callback: (payload: { restaurantId: string }) => void) {
+    this.typingListeners.push(callback);
+    return () => {
+      this.typingListeners = this.typingListeners.filter((fn) => fn !== callback);
+    };
+  }
+
+  emitRestaurantTyping(restaurantId: string) {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('restaurant_typing', { restaurantId });
+    }
   }
 
   disconnect() {

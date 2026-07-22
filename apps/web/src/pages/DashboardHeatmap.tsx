@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Compass, MapPin, TrendingUp, DollarSign, ShieldAlert, Cpu } from 'lucide-react';
 import { ApiClient, NeighborhoodItem } from '../services/api-client';
+import { socketClient } from '../services/socket-client';
 
 const RADAR_NEIGHBORHOODS = [
   { name: 'Centro', x: -60, y: -45, color: '#38bdf8', ringColor: '#38bdf8' },
@@ -11,12 +12,49 @@ const RADAR_NEIGHBORHOODS = [
   { name: 'Panorâmico', x: 40, y: -60, color: '#00ff66', ringColor: '#00ff66' },
 ];
 
+const ESTABLISHMENTS = [
+  { id: 'steak-grill', name: 'Steak Grill Bar', x: -45, y: 35, icon: '/logos/media__1784629913070.png', lat: -18.5850, lng: -46.5120 },
+  { id: 'sangreal-burguer', name: 'Sangreal Burguer!', x: -25, y: -20, icon: '/logos/media__1784630556152.png', lat: -18.5780, lng: -46.5130 },
+  { id: 'ebimaki-sushi', name: 'Ebimaki Sushi', x: -10, y: 15, icon: '/logos/media__1784631637300.png', lat: -18.5750, lng: -46.5190 },
+  { id: 'pizzaria-di-roma', name: 'Pizzaria Di Roma', x: -35, y: -45, icon: '/logos/media__1784631897861.png', lat: -18.5789, lng: -46.5153 },
+  { id: 'point-do-sorvete', name: 'Point Do Sorvete', x: 60, y: -45, icon: '/logos/media__1784632056475.png', lat: -18.6050, lng: -46.4850 },
+  { id: 'bells-burguer', name: 'Bells Burguer', x: 45, y: 15, icon: '/logos/media__1784632229727.png', lat: -18.6010, lng: -46.5050 },
+  { id: 'emporio-copacabana', name: 'Emporio Copacabana', x: 10, y: 40, icon: '/logos/media__1784632467719.png', lat: -18.5900, lng: -46.5080 },
+  { id: 'whatsbeer', name: 'Whatsbeer', x: -15, y: -75, icon: '/logos/media__1784632697714.png', lat: -18.5755, lng: -46.5100 },
+  { id: 'dubai-lanches', name: 'Dubai Lanches', x: 65, y: 50, icon: '/logos/media__1784634521177.png', lat: -18.6145, lng: -46.5050 }
+];
+
 export const DashboardHeatmap: React.FC = () => {
   const [neighborhoods, setNeighborhoods] = useState<NeighborhoodItem[]>([]);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>('Céu Azul');
+  const [typingRestaurants, setTypingRestaurants] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     ApiClient.fetchNeighborhoods().then(setNeighborhoods);
+  }, []);
+
+  useEffect(() => {
+    socketClient.connect();
+    const unsubscribe = socketClient.onRestaurantTyping((payload) => {
+      const { restaurantId } = payload;
+      const matched = ESTABLISHMENTS.find(
+        (e) =>
+          e.id === restaurantId ||
+          e.name.toLowerCase() === restaurantId.toLowerCase() ||
+          restaurantId.toLowerCase().includes(e.id)
+      );
+
+      if (matched) {
+        setTypingRestaurants((prev) => ({ ...prev, [matched.id]: true }));
+        setTimeout(() => {
+          setTypingRestaurants((prev) => ({ ...prev, [matched.id]: false }));
+        }, 5000);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const getHeatBadge = (idx: number) => {
@@ -103,7 +141,48 @@ export const DashboardHeatmap: React.FC = () => {
             );
           })}
 
-          {/* Centro Tático com Texto Pulsante solicitado */}
+          {/* Marcadores dos Estabelecimentos no Radar */}
+          {ESTABLISHMENTS.map((est) => {
+            const isTyping = !!typingRestaurants[est.id];
+
+            return (
+              <div
+                key={est.id}
+                style={{
+                  transform: `translate(${est.x}px, ${est.y}px)`,
+                }}
+                className="absolute z-30 group"
+              >
+                <div
+                  className={`w-7 h-7 rounded-full border-2 bg-slate-900 overflow-hidden flex items-center justify-center transition-all duration-300 relative ${
+                    isTyping
+                      ? 'border-[#00ff66] neon-typing-pulse scale-110 shadow-lg shadow-[#00ff66]/50'
+                      : 'border-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  <img
+                    src={est.icon}
+                    alt={est.name}
+                    className="w-full h-full object-cover"
+                  />
+                  {isTyping && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#00ff66] rounded-full border border-slate-950 animate-ping" />
+                  )}
+                </div>
+
+                {/* Popover Hover */}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-slate-950 border border-slate-700 text-[10px] text-white rounded font-mono opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl flex flex-col items-center">
+                  <span className="font-bold text-[#38bdf8]">{est.name}</span>
+                  <span className="text-[8px] text-slate-400">Lat: {est.lat}, Lng: {est.lng}</span>
+                  {isTyping && (
+                    <span className="text-[8px] text-[#00ff66] font-bold mt-0.5 animate-pulse uppercase">Digitando...</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Centro Tático com Texto Pulsante */}
           <div className="absolute flex flex-col items-center justify-center z-20">
             <span className="w-4 h-4 rounded-full bg-emerald-500 status-glow-green animate-ping mb-1" />
             <div className="px-3 py-1.5 bg-[#090d16]/95 border border-emerald-500/60 rounded-lg text-center shadow-lg">
@@ -111,6 +190,25 @@ export const DashboardHeatmap: React.FC = () => {
                 IA DA AMD / Operações
               </span>
             </div>
+          </div>
+        </div>
+
+        {/* Simulador de Digitação em Tempo Real */}
+        <div className="mt-4 p-3 bg-slate-900/60 rounded-lg border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-[#00ff66] animate-pulse" />
+            <span className="text-xs text-slate-300 font-mono">Simulador de Eventos:</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {ESTABLISHMENTS.slice(0, 4).map((est) => (
+              <button
+                key={est.id}
+                onClick={() => socketClient.emitRestaurantTyping(est.id)}
+                className="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-all font-mono font-bold"
+              >
+                Simular {est.name.replace('!', '').split(' ')[0]}
+              </button>
+            ))}
           </div>
         </div>
       </div>

@@ -144,3 +144,22 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
+
+/* Neon Typing Pulse Animation */
+@keyframes neon-pulse {
+  0%, 100% {
+    box-shadow: 0 0 6px #00ff66, inset 0 0 3px #00ff66;
+    border-color: #00ff66;
+  }
+  50% {
+    box-shadow: 0 0 16px #00ff66, 0 0 24px #ff3366, inset 0 0 8px #00ff66;
+    border-color: #ff3366;
+    transform: scale(1.18);
+  }
+}
+
+.neon-typing-pulse {
+  animation: neon-pulse 1s infinite ease-in-out;
+  z-index: 50 !important;
+}
+
