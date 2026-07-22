@@ -35,6 +35,7 @@ export const DashboardHeatmap: React.FC = () => {
   const [vcfContacts, setVcfContacts] = useState<any[]>([]);
   const [activeVcfMarkers, setActiveVcfMarkers] = useState<Record<string, { name: string; lat: number; lng: number; address: string; timestamp: number }>>({});
   const [activeEstablishmentMarkers, setActiveEstablishmentMarkers] = useState<Record<string, { id: string; name: string; lat: number; lng: number; icon: string; timestamp: number }>>({});
+  const [realtimeLogs, setRealtimeLogs] = useState<string[]>([]);
 
   useEffect(() => {
     ApiClient.fetchNeighborhoods().then(setNeighborhoods);
@@ -50,8 +51,15 @@ export const DashboardHeatmap: React.FC = () => {
       .catch((err) => console.warn(err.message));
   }, []);
 
+  const addLog = (msg: string) => {
+    const time = new Date().toLocaleTimeString();
+    setRealtimeLogs((prev) => [`[${time}] ${msg}`, ...prev.slice(0, 4)]);
+  };
+
   useEffect(() => {
     socketClient.connect();
+    addLog('🔌 Conectado ao barramento de eventos websockets em tempo real.');
+
     const unsubscribe = socketClient.onRestaurantTyping((payload) => {
       const { restaurantId } = payload;
       
@@ -63,6 +71,7 @@ export const DashboardHeatmap: React.FC = () => {
       );
 
       if (matchedEst) {
+        addLog(`⚡ Estabelecimento "${matchedEst.name}" digitando. Exibindo no mapa...`);
         setActiveEstablishmentMarkers((prev) => ({
           ...prev,
           [matchedEst.id]: {
@@ -89,6 +98,7 @@ export const DashboardHeatmap: React.FC = () => {
         );
 
         if (matchedContact) {
+          addLog(`📱 Contato da agenda "${matchedContact.name}" digitando. Exibindo no mapa...`);
           setActiveVcfMarkers((prev) => ({
             ...prev,
             [matchedContact.phone]: {
@@ -107,6 +117,8 @@ export const DashboardHeatmap: React.FC = () => {
               return updated;
             });
           }, 5000);
+        } else {
+          addLog(`⚠️ Evento de digitação recebido do número ${restaurantId} (Ocultado do mapa: sem endereço na agenda VCF).`);
         }
       }
     });
@@ -280,6 +292,23 @@ export const DashboardHeatmap: React.FC = () => {
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Terminal de Eventos em Tempo Real */}
+        <div className="mt-4 p-4 bg-[#090d16] rounded-lg border border-slate-800 font-mono text-[11px] text-slate-300 space-y-1.5 shadow-inner">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+            <span className="text-emerald-400 font-bold uppercase tracking-wider">Console de Eventos WhatsApp (Real-Time)</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+          </div>
+          {realtimeLogs.length === 0 ? (
+            <p className="text-slate-500 italic">Aguardando eventos do WhatsApp...</p>
+          ) : (
+            realtimeLogs.map((log, idx) => (
+              <div key={idx} className="fade-in transition-all">
+                {log}
+              </div>
+            ))
+          )}
         </div>
 
         {/* Simulador de Digitação em Tempo Real */}
