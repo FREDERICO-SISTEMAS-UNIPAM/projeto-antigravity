@@ -109,12 +109,23 @@
   animation: radar-blip-pulse 2s infinite ease-in-out;
 }
 
-.radar-blip-expanding-ring {
+@keyframes sonarRipple {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+.sonar-ripple {
   position: absolute;
   inset: -6px;
-  border: 1.5px solid var(--neon-green);
+  border: 1.5px solid currentColor;
   border-radius: 50%;
-  animation: radar-blip-ring 2.5s infinite cubic-bezier(0.21, 0.53, 0.56, 0.8);
+  animation: sonarRipple 2.5s infinite cubic-bezier(0.21, 0.53, 0.56, 0.8);
   pointer-events: none;
 }
 

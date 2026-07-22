@@ -72,10 +72,10 @@ export const DashboardHeatmap: React.FC = () => {
                 }}
                 className="absolute w-3.5 h-3.5 rounded-full transition-all duration-300 z-20 group hover:scale-125 focus:outline-none flex items-center justify-center"
               >
-                {/* Anel expansivo tático de radar com cor personalizada */}
+                {/* Sonar Ripple Wave */}
                 <span 
-                  style={{ borderColor: n.ringColor }}
-                  className="radar-blip-expanding-ring" 
+                  style={{ color: n.ringColor }}
+                  className="sonar-ripple" 
                 />
                 <span 
                   style={{ backgroundColor: isSelected ? '#ffffff' : n.color }}
