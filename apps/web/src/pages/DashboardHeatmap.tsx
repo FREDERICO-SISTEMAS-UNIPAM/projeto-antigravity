@@ -2,6 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Compass, MapPin, TrendingUp, DollarSign, ShieldAlert, Cpu } from 'lucide-react';
 import { ApiClient, NeighborhoodItem } from '../services/api-client';
 
+const RADAR_NEIGHBORHOODS = [
+  { name: 'Centro', x: -60, y: -45, color: '#38bdf8', ringColor: '#38bdf8' },
+  { name: 'Céu Azul', x: 80, y: 70, color: '#ff3366', ringColor: '#ff3366' },
+  { name: 'Rosário', x: -50, y: 60, color: '#ffcc00', ringColor: '#ffcc00' },
+  { name: 'Sebastião Amorim', x: 90, y: -30, color: '#00ff66', ringColor: '#00ff66' },
+  { name: 'Brasil', x: -20, y: -90, color: '#00ff66', ringColor: '#00ff66' },
+  { name: 'Panorâmico', x: 40, y: -60, color: '#00ff66', ringColor: '#00ff66' },
+];
+
 export const DashboardHeatmap: React.FC = () => {
   const [neighborhoods, setNeighborhoods] = useState<NeighborhoodItem[]>([]);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>('Céu Azul');
@@ -51,12 +60,7 @@ export const DashboardHeatmap: React.FC = () => {
           </div>
 
           {/* Pontos de Bairros Detectados no Radar */}
-          {neighborhoods.slice(0, 6).map((n, idx) => {
-            const angle = (idx * 60 * Math.PI) / 180;
-            const radius = 50 + idx * 25; // Distribuição nos círculos
-            const x = Math.cos(angle) * radius;
-            const y = Math.sin(angle) * radius;
-
+          {RADAR_NEIGHBORHOODS.map((n) => {
             const isSelected = selectedNeighborhood === n.name;
 
             return (
@@ -64,17 +68,21 @@ export const DashboardHeatmap: React.FC = () => {
                 key={n.name}
                 onClick={() => setSelectedNeighborhood(n.name)}
                 style={{
-                  transform: `translate(${x}px, ${y}px)`,
+                  transform: `translate(${n.x}px, ${n.y}px)`,
                 }}
-                className={`absolute w-3.5 h-3.5 rounded-full transition-all duration-300 z-20 group hover:scale-125 focus:outline-none flex items-center justify-center ${
-                  isSelected
-                    ? 'bg-[#00ff66] border border-white status-glow-green'
-                    : 'bg-emerald-500/70 border border-emerald-500/30'
-                }`}
+                className="absolute w-3.5 h-3.5 rounded-full transition-all duration-300 z-20 group hover:scale-125 focus:outline-none flex items-center justify-center"
               >
-                {/* Anel expansivo tático de radar */}
-                <span className="radar-blip-expanding-ring" />
-                <span className="w-1.5 h-1.5 bg-white rounded-full radar-blip-dot" />
+                {/* Anel expansivo tático de radar com cor personalizada */}
+                <span 
+                  style={{ borderColor: n.ringColor }}
+                  className="radar-blip-expanding-ring" 
+                />
+                <span 
+                  style={{ backgroundColor: isSelected ? '#ffffff' : n.color }}
+                  className={`w-1.5 h-1.5 rounded-full radar-blip-dot ${
+                    isSelected ? 'ring-2 ring-[#00ff66] scale-125' : ''
+                  }`} 
+                />
 
                 {/* Popover Hover */}
                 <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2.5 py-1 bg-slate-900 border border-slate-700 text-[10px] text-white rounded font-mono opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-xl">
