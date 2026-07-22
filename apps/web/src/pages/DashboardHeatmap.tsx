@@ -223,7 +223,7 @@ export const DashboardHeatmap: React.FC = () => {
                   }}
                 >
                   <Popup>
-                    <div className="text-xs font-mono text-slate-800">
+                    <div className="text-xs font-mono text-slate-200">
                       <p className="font-bold">{n.name}</p>
                     </div>
                   </Popup>
@@ -240,10 +240,10 @@ export const DashboardHeatmap: React.FC = () => {
                   icon={createCustomIcon(est, true)}
                 >
                   <Popup>
-                    <div className="text-xs font-mono text-slate-800">
+                    <div className="text-xs font-mono text-slate-200">
                       <p className="font-bold">{est.name}</p>
-                      <p className="text-[10px]">Lat: {est.lat}, Lng: {est.lng}</p>
-                      <p className="text-[#00ff66] font-bold animate-pulse">DIGITANDO...</p>
+                      <p className="text-[10px] text-slate-400">Lat: {est.lat}, Lng: {est.lng}</p>
+                      <p className="text-[#00ff66] font-bold animate-pulse mt-0.5">DIGITANDO...</p>
                     </div>
                   </Popup>
                 </Marker>
@@ -259,11 +259,11 @@ export const DashboardHeatmap: React.FC = () => {
                   icon={createContactIcon(contact.name, true)}
                 >
                   <Popup>
-                    <div className="text-xs font-mono text-slate-800">
+                    <div className="text-xs font-mono text-slate-200">
                       <p className="font-bold text-[#00ff66]">📱 CONTATO VCF DIGITANDO</p>
-                      <p className="font-bold">{contact.name}</p>
-                      <p className="text-[10px] text-slate-600">{contact.address}</p>
-                      <p className="text-[9px] text-slate-400">Tel: {phone}</p>
+                      <p className="font-bold text-white mt-0.5">{contact.name}</p>
+                      <p className="text-[10px] text-slate-400 mt-1">{contact.address}</p>
+                      <p className="text-[9px] text-slate-500 mt-0.5">Tel: {phone}</p>
                     </div>
                   </Popup>
                 </Marker>
