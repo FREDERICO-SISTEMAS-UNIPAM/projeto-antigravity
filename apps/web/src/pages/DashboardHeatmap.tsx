@@ -32,16 +32,15 @@ const ESTABLISHMENTS = [
 export const DashboardHeatmap: React.FC = () => {
   const [neighborhoods, setNeighborhoods] = useState<NeighborhoodItem[]>([]);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>('Céu Azul');
-  const [typingRestaurants, setTypingRestaurants] = useState<Record<string, boolean>>({});
   const [vcfContacts, setVcfContacts] = useState<any[]>([]);
   const [activeVcfMarkers, setActiveVcfMarkers] = useState<Record<string, { name: string; lat: number; lng: number; address: string; timestamp: number }>>({});
+  const [activeEstablishmentMarkers, setActiveEstablishmentMarkers] = useState<Record<string, { id: string; name: string; lat: number; lng: number; icon: string; timestamp: number }>>({});
 
   useEffect(() => {
     ApiClient.fetchNeighborhoods().then(setNeighborhoods);
   }, []);
 
   useEffect(() => {
-    // Carrega a lista completa de contatos VCF com endereços geolocalizados
     fetch('/contacts-with-addresses.json')
       .then((res) => {
         if (!res.ok) throw new Error('Não foi possível carregar os contatos do VCF.');
@@ -56,7 +55,6 @@ export const DashboardHeatmap: React.FC = () => {
     const unsubscribe = socketClient.onRestaurantTyping((payload) => {
       const { restaurantId } = payload;
       
-      // Procura primeiro nos estabelecimentos padrão
       const matchedEst = ESTABLISHMENTS.find(
         (e) =>
           e.id === restaurantId ||
@@ -65,12 +63,26 @@ export const DashboardHeatmap: React.FC = () => {
       );
 
       if (matchedEst) {
-        setTypingRestaurants((prev) => ({ ...prev, [matchedEst.id]: true }));
+        setActiveEstablishmentMarkers((prev) => ({
+          ...prev,
+          [matchedEst.id]: {
+            id: matchedEst.id,
+            name: matchedEst.name,
+            lat: matchedEst.lat,
+            lng: matchedEst.lng,
+            icon: matchedEst.icon,
+            timestamp: Date.now()
+          }
+        }));
+
         setTimeout(() => {
-          setTypingRestaurants((prev) => ({ ...prev, [matchedEst.id]: false }));
+          setActiveEstablishmentMarkers((prev) => {
+            const updated = { ...prev };
+            delete updated[matchedEst.id];
+            return updated;
+          });
         }, 5000);
       } else {
-        // Se não for estabelecimento padrão, procura nos contatos importados do VCF
         const cleanId = restaurantId.replace(/\D/g, '');
         const matchedContact = vcfContacts.find(
           (c) => c.phone === cleanId || cleanId.includes(c.phone) || c.phone.includes(cleanId)
@@ -88,7 +100,6 @@ export const DashboardHeatmap: React.FC = () => {
             },
           }));
 
-          // Remove o marcador dinâmico após 5 segundos
           setTimeout(() => {
             setActiveVcfMarkers((prev) => {
               const updated = { ...prev };
@@ -127,7 +138,7 @@ export const DashboardHeatmap: React.FC = () => {
     });
   };
 
-  const createCustomIcon = (est: typeof ESTABLISHMENTS[0], isTyping: boolean) => {
+  const createCustomIcon = (est: typeof ESTABLISHMENTS[0] | any, isTyping: boolean) => {
     return L.divIcon({
       className: 'custom-leaflet-marker',
       html: `
@@ -220,27 +231,26 @@ export const DashboardHeatmap: React.FC = () => {
               );
             })}
 
-            {/* Estabelecimentos Padrão */}
-            {ESTABLISHMENTS.map((est) => {
-              const isTyping = !!typingRestaurants[est.id];
+            {/* Estabelecimentos Padrão Ativos (Apenas os que estão digitando no momento) */}
+            {Object.values(activeEstablishmentMarkers).map((est) => {
               return (
                 <Marker
                   key={est.id}
                   position={[est.lat, est.lng]}
-                  icon={createCustomIcon(est, isTyping)}
+                  icon={createCustomIcon(est, true)}
                 >
                   <Popup>
                     <div className="text-xs font-mono text-slate-800">
                       <p className="font-bold">{est.name}</p>
                       <p className="text-[10px]">Lat: {est.lat}, Lng: {est.lng}</p>
-                      {isTyping && <p className="text-[#00ff66] font-bold animate-pulse">DIGITANDO...</p>}
+                      <p className="text-[#00ff66] font-bold animate-pulse">DIGITANDO...</p>
                     </div>
                   </Popup>
                 </Marker>
               );
             })}
 
-            {/* Contatos VCF Ativos (Digitando no WhatsApp) */}
+            {/* Contatos VCF Ativos (Apenas os que estão digitando no momento) */}
             {Object.entries(activeVcfMarkers).map(([phone, contact]) => {
               return (
                 <Marker
