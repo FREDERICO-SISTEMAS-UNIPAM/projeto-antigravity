@@ -4,10 +4,11 @@ import { RealtimeConsoleTerminal } from './components/RealtimeConsoleTerminal';
 import { DashboardHeatmap } from './pages/DashboardHeatmap';
 import { WhatsAppIngestionCard } from './components/WhatsAppIngestionCard';
 import { PredictiveAnalyticsPanel } from './components/PredictiveAnalyticsPanel';
+import { InvestorPortal } from './pages/InvestorPortal';
 import { TrendingUp, Package, ShieldCheck, DollarSign, Menu, Activity } from 'lucide-react';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'INGESTION' | 'ANALYTICS'>('DASHBOARD');
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'INGESTION' | 'ANALYTICS' | 'INVESTOR'>('DASHBOARD');
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
 
   return (
@@ -112,6 +113,12 @@ export function App() {
           <div className="space-y-6">
             <PredictiveAnalyticsPanel />
             <DashboardHeatmap />
+          </div>
+        )}
+
+        {activeTab === 'INVESTOR' && (
+          <div className="space-y-6">
+            <InvestorPortal />
           </div>
         )}
 

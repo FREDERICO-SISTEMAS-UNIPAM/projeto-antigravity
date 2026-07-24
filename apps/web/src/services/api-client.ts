@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = `http://${window.location.hostname}:3001`;
 
 export interface IngestionReportResponse {
   totalMessagesProcessed: number;
@@ -109,6 +109,45 @@ export class ApiClient {
       return await res.json();
     } catch {
       return { success: true, mode: 'OFFLINE_SIMULATION' };
+    }
+  }
+
+  /**
+   * Obtém o status atual do WhatsApp do backend.
+   */
+  static async getWhatsAppStatus(): Promise<{ status: string; qr: string | null; ownerName?: string | null }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/whatsapp/status`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch {
+      return { status: 'disconnected', qr: null, ownerName: null };
+    }
+  }
+
+  /**
+   * Conecta o WhatsApp iniciando o processo de escaneamento de QR Code.
+   */
+  static async connectWhatsApp(): Promise<{ status: string }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/whatsapp/connect`, { method: 'POST' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch {
+      return { status: 'connecting' };
+    }
+  }
+
+  /**
+   * Desconecta o WhatsApp e limpa a sessão local no servidor.
+   */
+  static async disconnectWhatsApp(): Promise<{ status: string }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/whatsapp/disconnect`, { method: 'POST' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch {
+      return { status: 'disconnected' };
     }
   }
 }

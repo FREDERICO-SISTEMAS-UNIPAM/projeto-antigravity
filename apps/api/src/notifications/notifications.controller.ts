@@ -26,12 +26,12 @@ export class NotificationsController {
     const device = await this.prisma.deviceToken.upsert({
       where: { fcmToken: dto.fcmToken },
       update: {
-        motoboyId: dto.motoboyId,
+        userId: dto.motoboyId,
         bleMacAddress: dto.bleMacAddress,
         platform: dto.platform || 'ANDROID',
       },
       create: {
-        motoboyId: dto.motoboyId,
+        userId: dto.motoboyId,
         fcmToken: dto.fcmToken,
         bleMacAddress: dto.bleMacAddress,
         platform: dto.platform || 'ANDROID',
@@ -52,7 +52,7 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Push enviado e comando BLE codificado.' })
   async testPush(@Body() dto: TestPushDto) {
     const device = await this.prisma.deviceToken.findFirst({
-      where: { motoboyId: dto.motoboyId },
+      where: { userId: dto.motoboyId },
       orderBy: { updatedAt: 'desc' },
     });
 

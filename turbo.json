@@ -1,6 +1,13 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["**/.env.*local"],
+  "globalPassThroughEnv": [
+    "DATABASE_URL",
+    "NODE_ENV",
+    "PORT",
+    "GEMINI_API_KEY",
+    "ENABLE_PHYSICAL_WHATSAPP"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

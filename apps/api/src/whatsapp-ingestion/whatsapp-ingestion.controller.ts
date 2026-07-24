@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   UseInterceptors,
   UploadedFile,
@@ -14,6 +15,7 @@ import { WhatsAppParserService } from './whatsapp-parser.service';
 import { DeliveryRequestsService } from '../delivery-requests/delivery-requests.service';
 import { RawSourceEnum } from '../delivery-requests/dto/create-delivery-request.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { WhatsAppMonitorService } from './whatsapp-monitor.service';
 
 interface MulterFile {
   fieldname: string;
@@ -31,7 +33,36 @@ export class WhatsAppIngestionController {
     private readonly whatsappParserService: WhatsAppParserService,
     private readonly deliveryRequestsService: DeliveryRequestsService,
     private readonly prisma: PrismaService,
+    private readonly whatsappMonitorService: WhatsAppMonitorService,
   ) {}
+
+  @Get('status')
+  @ApiOperation({
+    summary: 'Retorna o status atual de conexão do WhatsApp e o QR Code se disponível',
+  })
+  getWhatsAppStatus() {
+    return this.whatsappMonitorService.getStatus();
+  }
+
+  @Post('connect')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Força a inicialização da conexão física com o WhatsApp para gerar um novo QR Code',
+  })
+  async connectWhatsApp() {
+    await this.whatsappMonitorService.initWhatsAppConnection(true);
+    return { message: 'Iniciando pareamento do WhatsApp...', status: 'connecting' };
+  }
+
+  @Post('disconnect')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Fecha a conexão ativa do WhatsApp e apaga a sessão local de credenciais',
+  })
+  async disconnectWhatsApp() {
+    await this.whatsappMonitorService.disconnect();
+    return { message: 'Desconectado do WhatsApp e credenciais limpas.', status: 'disconnected' };
+  }
 
   @Post('upload')
   @HttpCode(HttpStatus.OK)

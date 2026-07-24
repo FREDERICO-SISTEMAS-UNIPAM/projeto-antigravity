@@ -1,19 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Compass, MapPin, TrendingUp, DollarSign, ShieldAlert, Cpu } from 'lucide-react';
+import { Compass, MapPin, TrendingUp, DollarSign, ShieldAlert, Cpu, LogOut, QrCode, User, Store, AlertTriangle } from 'lucide-react';
 import { ApiClient, NeighborhoodItem } from '../services/api-client';
 import { socketClient } from '../services/socket-client';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-const NEIGHBORHOODS_MAP = [
-  { name: 'Centro', lat: -18.5789, lng: -46.5153, color: '#38bdf8' },
-  { name: 'Céu Azul', lat: -18.6145, lng: -46.5050, color: '#ff3366' },
-  { name: 'Rosário', lat: -18.5850, lng: -46.5120, color: '#ffcc00' },
-  { name: 'Sebastião Amorim', lat: -18.5950, lng: -46.4800, color: '#00ff66' },
-  { name: 'Brasil', lat: -18.5755, lng: -46.5100, color: '#00ff66' },
-  { name: 'Panorâmico', lat: -18.5952, lng: -46.4905, color: '#00ff66' },
-];
+
 
 const ESTABLISHMENTS = [
   { id: '5534996972929', name: 'Steak Grill Bar', lat: -18.5850, lng: -46.5120, icon: '/logos/media__1784629913070.png' },
@@ -29,17 +22,27 @@ const ESTABLISHMENTS = [
   { id: '553498812152', name: 'IGOOD😎', lat: -18.5755, lng: -46.5100, icon: '/logos/media__1784632697714.png' }
 ];
 
+export interface TypingHistoryItem {
+  name: string;
+  phone: string;
+  time: string;
+  status: 'contato' | 'estabelecimento' | 'desconhecido';
+  neighborhood?: string;
+}
+
 export const DashboardHeatmap: React.FC = () => {
-  const [neighborhoods, setNeighborhoods] = useState<NeighborhoodItem[]>([]);
-  const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>('Céu Azul');
   const [vcfContacts, setVcfContacts] = useState<any[]>([]);
   const [activeVcfMarkers, setActiveVcfMarkers] = useState<Record<string, { name: string; lat: number; lng: number; address: string; timestamp: number }>>({});
   const [activeEstablishmentMarkers, setActiveEstablishmentMarkers] = useState<Record<string, { id: string; name: string; lat: number; lng: number; icon: string; timestamp: number }>>({});
   const [realtimeLogs, setRealtimeLogs] = useState<string[]>([]);
+  
+  // Estados do WhatsApp
+  const [waStatus, setWaStatus] = useState<'disconnected' | 'connecting' | 'qr_ready' | 'connected'>('disconnected');
+  const [waOwnerName, setWaOwnerName] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [typingHistory, setTypingHistory] = useState<TypingHistoryItem[]>([]);
 
-  useEffect(() => {
-    ApiClient.fetchNeighborhoods().then(setNeighborhoods);
-  }, []);
+
 
   useEffect(() => {
     fetch('/contacts-with-addresses.json')
@@ -54,6 +57,37 @@ export const DashboardHeatmap: React.FC = () => {
   const addLog = (msg: string) => {
     const time = new Date().toLocaleTimeString();
     setRealtimeLogs((prev) => [`[${time}] ${msg}`, ...prev.slice(0, 4)]);
+  };
+
+  // Carrega status e ouve atualizações do WhatsApp
+  useEffect(() => {
+    ApiClient.getWhatsAppStatus().then((res) => {
+      setWaStatus(res.status as any);
+      setWaOwnerName(res.ownerName || null);
+    });
+
+    const unsubscribeStatus = socketClient.onWhatsAppStatusUpdate((payload) => {
+      setWaStatus(payload.status as any);
+      setWaOwnerName(payload.ownerName || null);
+    });
+
+    return () => {
+      unsubscribeStatus();
+    };
+  }, []);
+
+  const handleDisconnect = async () => {
+    setLoading(true);
+    try {
+      await ApiClient.disconnectWhatsApp();
+      setWaStatus('disconnected');
+      setWaOwnerName(null);
+      addLog('🔌 Conexão física com WhatsApp desconectada pelo usuário.');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -72,6 +106,19 @@ export const DashboardHeatmap: React.FC = () => {
 
       if (matchedEst) {
         addLog(`⚡ Estabelecimento "${matchedEst.name}" digitando. Exibindo no mapa...`);
+        
+        // Adiciona ao histórico de digitação
+        setTypingHistory((prev) => [
+          {
+            name: matchedEst.name,
+            phone: matchedEst.id,
+            time: new Date().toLocaleTimeString(),
+            status: 'estabelecimento',
+            neighborhood: 'Patos de Minas (Central)'
+          },
+          ...prev.slice(0, 19)
+        ]);
+
         setActiveEstablishmentMarkers((prev) => ({
           ...prev,
           [matchedEst.id]: {
@@ -99,6 +146,19 @@ export const DashboardHeatmap: React.FC = () => {
 
         if (matchedContact) {
           addLog(`📱 Contato da agenda "${matchedContact.name}" digitando. Exibindo no mapa...`);
+          
+          // Adiciona ao histórico de digitação
+          setTypingHistory((prev) => [
+            {
+              name: matchedContact.name,
+              phone: matchedContact.phone,
+              time: new Date().toLocaleTimeString(),
+              status: 'contato',
+              neighborhood: matchedContact.neighborhood || 'Patos de Minas'
+            },
+            ...prev.slice(0, 19)
+          ]);
+
           setActiveVcfMarkers((prev) => ({
             ...prev,
             [matchedContact.phone]: {
@@ -119,6 +179,17 @@ export const DashboardHeatmap: React.FC = () => {
           }, 5000);
         } else {
           addLog(`⚠️ Evento de digitação recebido do número ${restaurantId} (Ocultado do mapa: sem endereço na agenda VCF).`);
+          
+          // Adiciona ao histórico de digitação (desconhecido/ignorado)
+          setTypingHistory((prev) => [
+            {
+              name: 'Contato Desconhecido',
+              phone: restaurantId,
+              time: new Date().toLocaleTimeString(),
+              status: 'desconhecido'
+            },
+            ...prev.slice(0, 19)
+          ]);
         }
       }
     });
@@ -128,27 +199,7 @@ export const DashboardHeatmap: React.FC = () => {
     };
   }, [vcfContacts]);
 
-  const getHeatBadge = (idx: number) => {
-    if (idx === 0) return { label: 'CRÍTICO', color: 'bg-red-500/10 text-red-400 border-red-500/30' };
-    if (idx < 3) return { label: 'ALTO FLUXO', color: 'bg-amber-500/10 text-amber-400 border-amber-500/30' };
-    return { label: 'NORMAL', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' };
-  };
 
-  const createNeighborhoodIcon = (n: typeof NEIGHBORHOODS_MAP[0], isSelected: boolean) => {
-    return L.divIcon({
-      className: 'custom-neighborhood-marker',
-      html: `
-        <div class="relative w-4 h-4 flex items-center justify-center">
-          <span class="sonar-ripple" style="color: ${n.color};"></span>
-          <span class="w-2 h-2 rounded-full radar-blip-dot ${
-            isSelected ? 'ring-2 ring-[#00ff66] scale-125 bg-white' : ''
-          }" style="background-color: ${isSelected ? '#ffffff' : n.color};"></span>
-        </div>
-      `,
-      iconSize: [16, 16],
-      iconAnchor: [8, 8],
-    });
-  };
 
   const createCustomIcon = (est: typeof ESTABLISHMENTS[0] | any, isTyping: boolean) => {
     return L.divIcon({
@@ -201,9 +252,34 @@ export const DashboardHeatmap: React.FC = () => {
               <p className="text-[10px] text-slate-400 font-mono">Radar AMD Copilot</p>
             </div>
           </div>
-          <span className="text-[10px] bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1 rounded-full font-mono font-bold">
-            SCANNER ATIVO: LORA/BLE
-          </span>
+
+          <div className="flex items-center space-x-3">
+            {waStatus === 'connected' ? (
+              <div className="flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#00ff66] status-glow-green animate-ping" />
+                <span className="text-[11px] font-black text-white tracking-wide">
+                  CONECTADO: <span className="text-[#00ff66]">{waOwnerName || 'Dono do WhatsApp'}</span>
+                </span>
+                <button
+                  onClick={handleDisconnect}
+                  disabled={loading}
+                  title="Desconectar WhatsApp"
+                  className="p-1 hover:bg-rose-500/20 rounded-lg text-rose-400 hover:text-rose-300 transition-colors ml-1"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2 bg-slate-800/80 border border-slate-700 px-3 py-1.5 rounded-xl">
+                <span className="w-2 h-2 rounded-full bg-slate-500" />
+                <span className="text-[11px] font-bold text-slate-400">WhatsApp Offline</span>
+              </div>
+            )}
+
+            <span className="text-[10px] bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1 rounded-full font-mono font-bold">
+              SCANNER ATIVO: LORA/BLE
+            </span>
+          </div>
         </div>
 
         {/* Display do Radar Tático (Mapa Leaflet Interativo) */}
@@ -220,30 +296,9 @@ export const DashboardHeatmap: React.FC = () => {
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             />
 
-            {/* Bairros */}
-            {NEIGHBORHOODS_MAP.map((n) => {
-              const isSelected = selectedNeighborhood === n.name;
-              return (
-                <Marker
-                  key={n.name}
-                  position={[n.lat, n.lng]}
-                  icon={createNeighborhoodIcon(n, isSelected)}
-                  eventHandlers={{
-                    click: () => {
-                      setSelectedNeighborhood(n.name);
-                    },
-                  }}
-                >
-                  <Popup>
-                    <div className="text-xs font-mono text-slate-200">
-                      <p className="font-bold">{n.name}</p>
-                    </div>
-                  </Popup>
-                </Marker>
-              );
-            })}
 
-            {/* Estabelecimentos Padrão Ativos (Apenas os que estão digitando no momento) */}
+
+            {/* Estabelecimentos Padrão Ativos */}
             {Object.values(activeEstablishmentMarkers).map((est) => {
               return (
                 <Marker
@@ -262,7 +317,7 @@ export const DashboardHeatmap: React.FC = () => {
               );
             })}
 
-            {/* Contatos VCF Ativos (Apenas os que estão digitando no momento) */}
+            {/* Contatos VCF Ativos */}
             {Object.entries(activeVcfMarkers).map(([phone, contact]) => {
               return (
                 <Marker
@@ -294,10 +349,80 @@ export const DashboardHeatmap: React.FC = () => {
           </div>
         </div>
 
-        {/* Terminal de Eventos em Tempo Real */}
+        {/* Relação de Contatos que digitaram (logo abaixo do mapa) */}
+        <div className="mt-4 p-5 bg-[#090d16] rounded-xl border border-slate-800 shadow-inner">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+            <div className="flex items-center space-x-2.5">
+              <QrCode className="w-4 h-4 text-[#00ff66]" />
+              <h3 className="text-xs sm:text-sm font-extrabold text-white uppercase tracking-wider">Histórico de Contatos que Digitaram</h3>
+            </div>
+            <span className="text-[9px] text-slate-500 font-mono uppercase font-black">Tempo Real</span>
+          </div>
+
+          {typingHistory.length === 0 ? (
+            <div className="text-center py-6 text-slate-500 text-xs italic">
+              Nenhum contato com endereço salvo digitou ainda. O histórico aparecerá aqui em tempo real.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs font-mono">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-widest text-[9px] font-black">
+                    <th className="py-2.5">Tipo</th>
+                    <th className="py-2.5">Nome / Identificador</th>
+                    <th className="py-2.5">Telefone</th>
+                    <th className="py-2.5">Bairro Geocodificado</th>
+                    <th className="py-2.5 text-right">Horário</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/40">
+                  {typingHistory.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-slate-900/40 text-slate-300 transition-colors">
+                      <td className="py-3">
+                        {item.status === 'contato' && (
+                          <span className="flex items-center text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full text-[9px] font-black uppercase w-fit">
+                            <User className="w-3 h-3 mr-1" />
+                            Contato
+                          </span>
+                        )}
+                        {item.status === 'estabelecimento' && (
+                          <span className="flex items-center text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full text-[9px] font-black uppercase w-fit">
+                            <Store className="w-3 h-3 mr-1" />
+                            Loja
+                          </span>
+                        )}
+                        {item.status === 'desconhecido' && (
+                          <span className="flex items-center text-slate-400 bg-slate-500/10 border border-slate-500/20 px-2 py-0.5 rounded-full text-[9px] font-black uppercase w-fit">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            Ignorado
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 font-bold text-white">{item.name}</td>
+                      <td className="py-3 text-slate-400 font-semibold">{item.phone}</td>
+                      <td className="py-3 text-slate-400">
+                        {item.neighborhood ? (
+                          <span className="flex items-center text-emerald-400/90 font-semibold">
+                            <MapPin className="w-3.5 h-3.5 mr-1" />
+                            {item.neighborhood}
+                          </span>
+                        ) : (
+                          <span className="text-slate-600 font-semibold italic">Sem endereço cadastrado</span>
+                        )}
+                      </td>
+                      <td className="py-3 text-right text-slate-400 font-bold">{item.time}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Terminal de Eventos em Tempo Real (Console de Auditoria) */}
         <div className="mt-4 p-4 bg-[#090d16] rounded-lg border border-slate-800 font-mono text-[11px] text-slate-300 space-y-1.5 shadow-inner">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
-            <span className="text-emerald-400 font-bold uppercase tracking-wider">Console de Eventos WhatsApp (Real-Time)</span>
+            <span className="text-emerald-400 font-bold uppercase tracking-wider">Console de Logs Táticos (Auditoria)</span>
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
           </div>
           {realtimeLogs.length === 0 ? (
@@ -344,93 +469,6 @@ export const DashboardHeatmap: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid de Cards de Bairros Reativo e Detalhes */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-3">
-          {neighborhoods.map((n, idx) => {
-            const badge = getHeatBadge(idx);
-            const isSelected = selectedNeighborhood === n.name;
-
-            return (
-              <div
-                key={n.id || n.name}
-                onClick={() => setSelectedNeighborhood(n.name)}
-                className={`p-4 rounded-xl border transition-all cursor-pointer flex justify-between items-center ${
-                  isSelected
-                    ? 'bg-emerald-500/10 border-[#00ff66] shadow-md'
-                    : 'bg-[#1e293b] border-[#334155] hover:border-slate-500'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2.5 rounded-lg ${isSelected ? 'bg-emerald-500/20 text-[#00ff66]' : 'bg-slate-800 text-slate-400'}`}>
-                    <MapPin className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white">{n.name}</h3>
-                    <p className="text-[10px] text-slate-400 font-mono">Bairro Geocodificado</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-4">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-[10px] text-slate-400 font-semibold">Estimativa Média</p>
-                    <p className="text-sm font-black text-[#ffcc00]">R$ {(11 + idx * 0.75).toFixed(2)}</p>
-                  </div>
-                  <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full border ${badge.color}`}>
-                    {badge.label}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Card Lateral de Detalhes da Região Selecionada */}
-        <div className="saas-card p-6 border border-[#334155] flex flex-col justify-between space-y-4">
-          <div>
-            <div className="flex justify-between items-center mb-3 gap-2">
-              <div className="flex items-center space-x-2 text-[#00ff66] text-xs font-bold">
-                <TrendingUp className="w-4 h-4 animate-pulse" />
-                <span>INFO REGIÃO</span>
-              </div>
-              <span className="text-[9px] bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2 py-0.5 rounded-full font-black tracking-wider uppercase">
-                MELHOR ÁREA
-              </span>
-            </div>
-            
-            <h3 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-2">{selectedNeighborhood}</h3>
-            
-            <p className="text-xs text-slate-400 leading-relaxed mb-6 font-medium">
-              Região integrada ativamente ao scanner espaço-temporal. Histórico com pico de atividade preditiva gerada pelo motor AMD/Gemini.
-            </p>
-
-            <div className="space-y-3">
-              <div className="p-3.5 bg-slate-900/80 rounded-xl border border-slate-700/80">
-                <span className="text-[10px] text-slate-400 block font-bold mb-0.5 uppercase tracking-wide">Previsão da IA</span>
-                <p className="text-sm font-black text-[#00ff66]">98% de confiança</p>
-              </div>
-
-              <div className="p-3.5 bg-slate-900/80 rounded-xl border border-slate-700/80">
-                <span className="text-[10px] text-slate-400 block font-bold mb-0.5 uppercase tracking-wide">Tempo Estimado de Espera</span>
-                <p className="text-sm font-black text-slate-200">2 min</p>
-              </div>
-
-              <div className="p-3.5 bg-slate-900/80 rounded-xl border border-slate-700/80">
-                <span className="text-[10px] text-slate-400 block font-bold mb-0.5 uppercase tracking-wide">Ganhos Estimados</span>
-                <p className="text-sm font-black text-[#ffcc00] flex items-center">
-                  <DollarSign className="w-4 h-4 mr-1 text-[#ffcc00]" />
-                  R$ 40,03/hora
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-slate-800 text-[10px] text-slate-500 font-mono flex items-center justify-between">
-            <span>DETECTOR_ID: AMD-TACTICAL</span>
-            <Cpu className="w-4 h-4 text-emerald-500" />
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

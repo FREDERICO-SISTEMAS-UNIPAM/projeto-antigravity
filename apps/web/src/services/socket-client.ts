@@ -16,8 +16,9 @@ export class SocketClient {
   private socket: Socket | null = null;
   private listeners: Array<(payload: TypingAlertPayload) => void> = [];
   private typingListeners: Array<(payload: { restaurantId: string }) => void> = [];
+  private statusListeners: Array<(payload: { status: string; qr: string | null; ownerName?: string | null }) => void> = [];
 
-  connect(serverUrl: string = 'http://localhost:3001') {
+  connect(serverUrl: string = `http://${window.location.hostname}:3001`) {
     if (this.socket && this.socket.connected) return;
 
     this.socket = io(`${serverUrl}/realtime`, {
@@ -38,6 +39,11 @@ export class SocketClient {
       console.log('🔔 Evento restaurant_typing recebido no Dashboard Web:', payload);
       this.typingListeners.forEach((fn) => fn(payload));
     });
+
+    this.socket.on('whatsapp_status_update', (payload: { status: string; qr: string | null; ownerName?: string | null }) => {
+      console.log('🔔 Evento whatsapp_status_update recebido no Dashboard Web:', payload);
+      this.statusListeners.forEach((fn) => fn(payload));
+    });
   }
 
   onMerchantTyping(callback: (payload: TypingAlertPayload) => void) {
@@ -51,6 +57,13 @@ export class SocketClient {
     this.typingListeners.push(callback);
     return () => {
       this.typingListeners = this.typingListeners.filter((fn) => fn !== callback);
+    };
+  }
+
+  onWhatsAppStatusUpdate(callback: (payload: { status: string; qr: string | null; ownerName?: string | null }) => void) {
+    this.statusListeners.push(callback);
+    return () => {
+      this.statusListeners = this.statusListeners.filter((fn) => fn !== callback);
     };
   }
 

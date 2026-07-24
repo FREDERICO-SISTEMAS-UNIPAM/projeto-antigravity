@@ -9,8 +9,14 @@ import { AiModule } from './ai/ai.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { NotificationsModule } from './notifications/notifications.module';
 
+import { ConfigModule } from '@nestjs/config';
+
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env'],
+    }),
     PrismaModule,
     DeliveryRequestsModule,
     WhatsAppIngestionModule,
